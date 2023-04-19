@@ -8,4 +8,4 @@ Files for the master thesis on the topic named:
   - **extractNwords()**;  [Converted successfully]
   - **extract_mf3()**;    [Converted successfully]
   - **extract_mf6()**;    [Converted successfully]
-  - Main body of **convertGSXtoCSV.m**: [Work in progress]
+  - Main body of **convertCSVtoM.m**: [Work in progress]
