@@ -7,5 +7,5 @@ Files for the master thesis on the topic named:
 * File **convertCSVtoM.m** depends on three main functions: **extractNwords()**, **extract_mf3()** and **extract_mf6()**. These functions are located in a Jupyter Notebook named **testPython.ipynb** in the ***ReactorPhysics_Python*** folder. A MATLAB file named **testMATLAB.m** has also been added as a testing ground for secluded functions.Progress at the moment:
   - **extractNwords()**;  [Converted successfully]
   - **extract_mf3()**;    [Converted successfully]
-  - **extract_mf6()**;    [Converted successfully]
+  - **extract_mf6()**;    [Broken] -> Can't assign correct dimesion to "sig"
   - Main body of **convertCSVtoM.m**: [Work in progress]
