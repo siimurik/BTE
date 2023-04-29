@@ -232,7 +232,7 @@ def extract_mf6(mt, ntt, m):
         # containing all the data;
         # reshape((nLgn, nSig0, z), order='F') - the 2D shape of the 3D array 
         # can be defined by the values of "nLgn" and "nSig0". "z" has been
-        # calculated based on the lengtyh of the 1D array. "order" decribes
+        # calculated based on the length of the 1D array. "order" decribes
         # the way data is stored in the final ("sigFinal" 3D matrix). Specifically,
         # "order='F'" signifies the Fortran-like inexing order, which Matlab uses,
         # bc in Matlab, data is stored row-wise rather than column-wise like in
