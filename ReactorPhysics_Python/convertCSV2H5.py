@@ -232,9 +232,9 @@ def extract_mf6(mt, ntt, m):
         # containing all the data;
         # reshape((nLgn, nSig0, z), order='F') - the 2D shape of the 3D array 
         # can be defined by the values of "nLgn" and "nSig0". "z" has been
-        # calculated based on the length of the 1D array. "order" decribes
+        # calculated based on the length of the 1D array. "order" describes
         # the way data is stored in the final ("sigFinal" 3D matrix). Specifically,
-        # "order='F'" signifies the Fortran-like inexing order, which Matlab uses,
+        # "order='F'" signifies the Fortran-like indexing order, which Matlab uses,
         # bc in Matlab, data is stored row-wise rather than column-wise like in
         # C or Python (order = 'C'; the default option for reshape)
         sigFinal = sig[:, sig.shape[1]-1].reshape((nLgn, nSig0, z), order='F')
@@ -418,7 +418,7 @@ def main():
                             sigS[jLgn][iSig0] = sparse.coo_matrix((sigE[jLgn, iSig0, :]+1e-30, (ifromE-1, itoE-1)), shape=(ng, ng))
                             #print(sigS[0][0].toarray())    # To see the first cell
                             # Also just in case you are interesed in 
-                            # seeing the dimesions of sigS:
+                            # seeing the dimensions of sigS:
                             #for jLgn in range(nLgn + 1):
                             #    for iSig0 in range(nSig0):
                             #        print(f"Shape of sigS[{jLgn}][{iSig0}]: {sigS[jLgn][iSig0].shape}")
@@ -519,7 +519,7 @@ def main():
                         # event, and the delayed neutron precursor distribution, which describes the 
                         # probability that a neutron precursor will decay and emit a neutron with a 
                         # certain energy. The chi function is a crucial input parameter for nuclear 
-                        # reactor simulations, as it influences the behavior of the neutron 
+                        # reactor simulations, as it influences the behaviour of the neutron 
                         # population and the energy production in the reactor.
                         #============================================================================
                         print(f"Convert {nameOnly}.CSV to {isoName}.h5: mf=6 mt=18 fission spectrum")
