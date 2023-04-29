@@ -222,11 +222,12 @@ def extract_mf6(mt, ntt, m):
         iRow += 1
         
     if nTemp == -1:
-        sigFinal = 0
+        #sigFinal = 0
+        sigFinal = np.zeros(1)
     else:
         sig   = np.stack(sig)           # makes the array of arrays into one array
-        sigShape = sig.shape[0]         # get the length of the 1D array
-        z = int(sigShape/(nLgn*nSig0))  # find how long is the 3rd dimesion of the 3D array
+        #sigShape = sig.shape[0]         # get the length of the 1D array
+        z = int(sig.shape[0]/(nLgn*nSig0))  # find how long is the 3rd dimesion of the 3D array
         # sig[:, sig.shape[1]-1] - take all the elements from the last column
         # containing all the data;
         # reshape((nLgn, nSig0, z), order='F') - the 2D shape of the 3D array 
@@ -236,7 +237,12 @@ def extract_mf6(mt, ntt, m):
         # "order='F'" signifies the Fortran-like inexing order, which Matlab uses,
         # bc in Matlab, data is stored row-wise rather than column-wise like in
         # C or Python (order = 'C'; the default option for reshape)
-        sigFinal = sig[:, sig.shape[1]-1].reshape((nLgn, nSig0, z), order='F')  
+        sigFinal = sig[:, sig.shape[1]-1].reshape((nLgn, nSig0, z), order='F')
+        if nLgn == 1:   # Not sure why this is necessary, maybe for discrete ordinate method?
+            # create two rows of zeros with shape (2, nSig0, sigShape)
+            rows_of_zeros = np.zeros((2, nSig0, z))
+            # stack original array and rows of zeros vertically
+            sigFinal = np.vstack((sigFinal, rows_of_zeros))
     
     # Convert lists to NumPy arrays for faster processing
     # and for (ifrom == 0).all() check to work
@@ -246,10 +252,12 @@ def extract_mf6(mt, ntt, m):
     return ifrom, ito, sigFinal
 
 """
+===================================================
 Start of convertCSV2H5.
----
+---------------------------------------------------
 Essentially just converts CSV files into HDF5 files
 for every temperature section in the CSV file.
+===================================================
 """
 def main():
     csv_files = [file for file in os.listdir('.') if file.endswith('.CSV')] # get a list of all CSV files in the current directory
@@ -278,15 +286,15 @@ def main():
                 isoName = f"micro_{nameOnly}_{round(temp[iTemp])}K" # name of the file with a temperature index
 
             if not os.path.exists(isoName + '.h5'): # if the corresponding HDF5 file does not exist
-                print(f"check if HDF5 files for all temperatures are already available.")
+                print(f"Check if the HDF5 files for all temperatures are already available.")
                 with h5py.File(isoName + '.h5', 'w') as hdf:
                     # Add important parameters for which the microscopic cross sections were generated
                     hdf.attrs['description'] = 'Python-based Neutron Transport Simulation'
 
                     # write the data to the HDF5 file
                     #hdf.create_dataset('atomic_weight', data=m[1, 1] * 1.008664916)
-                    # write atomic_weight (amy) to the HDF5 file as metadata
-                    hdf.attrs['atomic_weight'] = m[1, 1] * 1.008664916
+                    # write atomic_weight (amu) to the HDF5 file as metadata
+                    hdf.attrs['atomic_weight_amu'] = m[1, 1] * 1.008664916
 
                     # write group number to the HDF5 file as metadata
                     ng = int(421)
