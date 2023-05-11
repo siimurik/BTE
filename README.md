@@ -12,7 +12,7 @@ Files for the master thesis on the topic named:
   * Final file: **convertCSV2H5.py**
 ---
 * Starting work on **createH2OU.m**. Created a test version "_Test.m". Also started to structurize the folders similarly. New testing ground is in folder 02.Macro.XS.421g in file **testMacro.ipynb**. **createH2OU.m** needs 3 functions to work plus a speacial library called XSteam. Current progress:
-  - XSteam - A similar library made for Python named [pyXSteam](https://github.com/drunsinn/pyXSteam)
-  - sigmaZeros()
-  - interpSigS()
-  - writeMacroXS()
+  - XSteam - A similar library made for Python named [pyXSteam](https://github.com/drunsinn/pyXSteam).
+  - sigmaZeros();   [Work in progress]
+  - interpSigS();   [Work in progress]
+  - writeMacroXS(); [Not started]
