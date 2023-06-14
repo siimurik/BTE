@@ -304,8 +304,11 @@ def main():
                     #hdf.create_dataset('temperature', data=temp[iTemp])
                     hdf.attrs['temperature'] = temp[iTemp]
 
-                    # extract the energy group boundaries and sigma-zeros
+                    # extract and sigma-zeros and write into metadata
                     nSig0 = int(m[1, 3])
+                    hdf.attrs['nSig0'] = nSig0
+
+                    # extract the energy group boundaries 
                     a = extractNwords(int(1 + nSig0 + (ng+1)), 3, m)
                     
 
