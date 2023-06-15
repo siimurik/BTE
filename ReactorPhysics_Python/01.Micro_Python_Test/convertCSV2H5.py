@@ -361,11 +361,12 @@ def main():
                     print(f"Convert {nameOnly}.CSV to {isoName}.h5: mf=3 mt=107 (n,alfa)")
                     sigL = extract_mf3(107, iTemp, m)  # Extract mf=3 mt=107 (production of an alfa particle)
                     #if sigL.size == 0:
+                    sigL_G = hdf.create_group("sigL_G")
                     if (sigL == 0).all():
                         sigL = np.zeros((nSig0, ng))
+                        sigL_G.create_dataset('sigL', data=sigL)
                     else:
                         nSig0L = sigL.shape[0]
-                        sigL_G = hdf.create_group("sigL_G")
                         for iSig0 in range(nSig0L):
                             sigL_G.create_dataset(f"sigL({iSig0},:)", data=sigL[iSig0,0:ng])
                         if nSig0L == 1 and nSig0 > 1:
