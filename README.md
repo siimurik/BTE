@@ -16,6 +16,6 @@ Files for the master thesis on the topic named:
   - sigmaZeros();   [Converted successfully]
   - interpSigS();   [Converted successfully]
   - writeMacroXS(); [Converted successfully]
-* **createH2OU.m** has been succesfully converted into Python and now bears the name **createH2OU_sol.py**. File can be found in the folder 02.Macro.XS.421g.
+* **createH2OU.m** has been succesfully converted into Python and now bears the name **createH2OU_Sol.py**. File can be found in the folder 02.Macro.XS.421g.
 ---
 * Next up: starting work on **createPWR_like_mix.m**
