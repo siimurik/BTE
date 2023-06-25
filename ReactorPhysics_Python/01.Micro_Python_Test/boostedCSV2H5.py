@@ -439,7 +439,6 @@ if __name__ == '__main__':
 # sys	0m2.778s
 
 # With numba:
-# real	5m57.630s
-# user	5m55.050s
-# sys	0m2.629s
-
+# real	0m32.180s
+# user	0m30.547s
+# sys	0m2.649s
