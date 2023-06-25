@@ -464,9 +464,9 @@ def main():
     H2OU_eg = np.array(hdf5_H01.get('en_G').get('eg'))   # From the group 'en_G' get subgroup containing the data named 'eg'
 
     # Get the atomic weight from the metadata
-    H01_aw  = hdf5_H01.attrs.get('atomic_weight_amu')
-    O16_aw  = hdf5_O16.attrs.get('atomic_weight_amu')
-    U235_aw = hdf5_U235.attrs.get('atomic_weight_amu')
+    H01_aw  = hdf5_H01.attrs.get('aw')
+    O16_aw  = hdf5_O16.attrs.get('aw')
+    U235_aw = hdf5_U235.attrs.get('aw')
     #print('\natomic_weight of H01: ', H01_aw,'\ndata type:', type(H01_aw))
 
     # Mass of one "average" H2OU molecule in atomic unit mass [a.u.m.]:
