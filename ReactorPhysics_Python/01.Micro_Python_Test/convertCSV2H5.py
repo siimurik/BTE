@@ -294,7 +294,7 @@ def main():
                     # write the data to the HDF5 file
                     #hdf.create_dataset('atomic_weight', data=m[1, 1] * 1.008664916)
                     # write atomic_weight (amu) to the HDF5 file as metadata
-                    hdf.attrs['atomic_weight_amu'] = m[1, 1] * 1.008664916
+                    hdf.attrs['aw'] = m[1, 1] * 1.008664916
 
                     # write group number to the HDF5 file as metadata
                     ng = int(421)
