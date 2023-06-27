@@ -1,8 +1,7 @@
 import os
 import h5py
 import numba
-from numba import jit
-#from functools import lru_cache
+from numba import jit, prange
 import numpy as np
 import pandas as pd
 import scipy.sparse as sparse
@@ -29,6 +28,7 @@ def extractNwords(n, iRow, m):
 
     return a, iRowNew
 
+# Atomatic parallelization: DISABLED
 @jit(nopython=True) # parallel = True, fastmath=True
 def extract_mf3(mt, ntt, m):
     nRow = m.shape[0]  # number of rows
@@ -58,6 +58,8 @@ def extract_mf3(mt, ntt, m):
         sig = np.zeros((1, 1))  # Modify the shape to match a 2D array
 
     return sig
+
+
 
 @jit(nopython=True)
 def extract_mf6(mt, ntt, m):
@@ -97,7 +99,7 @@ def extract_mf6(mt, ntt, m):
                         for iLgn in range(nLgn):
                             k += 1
                             data = np.append((iLgn, iSig0, nonz - 1), a[k - 1])
-                            sig.append(data)
+                            sig.append((iLgn, iSig0, nonz - 1, a[k - 1]))
 
         iRow += 1
 
@@ -106,16 +108,10 @@ def extract_mf6(mt, ntt, m):
     else:
         sig_shape = len(sig) // (nLgn * nSig0)
         sigFinal = np.empty((nLgn, nSig0, sig_shape), dtype=np.float64)
-        idx = 0
         for i in range(nLgn):
             for j in range(nSig0):
                 for k in range(sig_shape):
-                    sigFinal[i, j, k] = sig[idx][3]
-                    idx += 1
-
-        if nLgn == 1:
-            rows_of_zeros = np.zeros((2, nSig0, sig_shape), dtype=np.float64)
-            sigFinal = np.vstack((sigFinal, rows_of_zeros))
+                    sigFinal[i, j, k] = sig[k*nLgn*nSig0+i][3]
 
     ifrom = np.array(ifrom)
     ito = np.array(ito)
@@ -439,6 +435,7 @@ if __name__ == '__main__':
 # sys	0m2.778s
 
 # With numba:
-# real	0m32.180s
-# user	0m30.547s
-# sys	0m2.649s
+# real	5m57.630s
+# user	5m55.050s
+# sys	0m2.629s
+
