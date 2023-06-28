@@ -18,7 +18,10 @@ Files for the master thesis on the topic named:
   - writeMacroXS(); [Converted successfully]
 * **createH2OU.m** has been succesfully converted into Python and now bears the name **createH2OU_Sol.py**. File can be found in the folder 02.Macro.XS.421g.
 ---
-* Next up: starting work on **createPWR_like_mix.m**
+* Next up: starting work on **createPWR_like_mix.m**. Two new functions that need to be rewritten from 00.Lib
+  - input_and_initialize_PWR_like()
+  - matpro()
+  Data that these files create are stored in the same folder, functions are part of the larger code named **createPWR_like_mix.py**
 * **createPWR_like_mix.m** finished.
 * Significantly optimized the **convertCSV2H5.py** code. Improved version is named **boostedCSV2H5.py** and uses the [Numba](https://numba.readthedocs.io/en/stable/) just-in-time compiler. 
 ---
