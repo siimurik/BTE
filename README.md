@@ -19,7 +19,8 @@ Files for the master thesis on the topic named:
 * **createH2OU.m** has been succesfully converted into Python and now bears the name **createH2OU_Sol.py**. File can be found in the folder 02.Macro.XS.421g.
 ---
 * Next up: starting work on **createPWR_like_mix.m**
-
+* **createPWR_like_mix.m** finished.
+* Significantly optimized the **convertCSV2H5.py** code. Improved version is named **boostedCSV2H5.py** and uses the [Numba](https://numba.readthedocs.io/en/stable/) just-in-time compiler. 
 ---
 Task 1. Download nuclear data from IAEA site.
 
@@ -30,16 +31,16 @@ Download the GENDF files for the required isotopes from the open-access
 
 The isotopes used for the PWR-like unit cell calculations:
 
-B_010.GXS
-B_011.GXS
-H_001.GXS
-O_016.GXS
-U_235.GXS
-U_238.GXS
-ZR090.GXS
-ZR091.GXS
-ZR092.GXS
-ZR094.GXS
-ZR096.GXS
+* B_010.GXS
+* B_011.GXS
+* H_001.GXS
+* O_016.GXS
+* U_235.GXS
+* U_238.GXS
+* ZR090.GXS
+* ZR091.GXS
+* ZR092.GXS
+* ZR094.GXS
+* ZR096.GXS
 
 ---
