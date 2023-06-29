@@ -421,7 +421,22 @@ def psi(k1, k2, M1, M2):
 def evaluate_equation(equation, **kwargs):
     return eval(equation, globals(), kwargs)
 
+"""
+======================================================================================
+Documentation interpSigS() function
+--------------------------------------------------------------------------------------
+ The interpSigS function performs interpolation to calculate the scattering matrix 
+ sigS based on provided input parameters.
+ 
+ **Inputs**:
+ - 'jLgn': An integer representing the index of the energy group.
+ - 'element': A string specifying the element.
+ - 'Sig0': A numpy array representing the sigma-zero values for target points.
 
+ **Outputs:**
+ - 'sigS': A numpy array representing the resulting scattering matrix.
+======================================================================================
+"""
 def interpSigS(jLgn, element, temp, Sig0):
     # Number of energy groups
     ng = 421
@@ -488,6 +503,22 @@ def interpSigS(jLgn, element, temp, Sig0):
 
     return sigS
 
+"""
+==========================================================
+ writeMacroXS() Function Documentation
+----------------------------------------------------------
+ This function writes all group macroscopic cross sections
+ from a HDF5.h5 structure 's_filename' to a HDF5 file with
+ the name stored in matName.
+
+**Inputs:**
+    - s_filename: HDF5 file
+    - matName: string
+
+**Output:**
+    - "matName.h5": HDF5 file
+==========================================================
+"""
 def writeMacroXS(s_filename, matName):
     print(f'Write macroscopic cross sections to the file: {matName}.h5')
     
@@ -578,8 +609,19 @@ def prepareIntoND(*matrices):
         result3D[cell, :num_rows, :] = matrices[cell]
 
     return result3D
+"""
+=====================================================================================
+ Documentation for the main() section of the code:
+-------------------------------------------------------------------------------------
+ Author: Siim Erik Pugal, 2023
 
-
+ The main function reads the MICROscopic group cross sections in the HDF5
+ format for materials similar to the materials of the unit cell of the
+ pressurized water reactor (PWR) and calculates from them the MACROscopic
+ cross sections for homogeneous mixture of dioxide uranium (fuel), natural
+ mixture of zirconium isotopes (cladding) and water solution of boric acid (coolant).
+=====================================================================================
+"""
 def main():
     # Initialize the geometry of the PWR-like unit cell
     initPWR_like()
