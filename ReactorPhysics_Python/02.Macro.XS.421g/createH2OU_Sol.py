@@ -351,86 +351,115 @@ def interpSigS(jLgn, element, temp, Sig0):
     - "matName.h5": HDF5 file
 ==========================================================
 """
-def writeMacroXS(s_filename, matName):
+def writeMacroXS(s_struct, matName):
     print(f'Write macroscopic cross sections to the file: {matName}.h5')
     
-    # Open the input HDF5 file
-    with h5py.File(s_filename, 'r') as s_file:
-        # Create the output HDF5 file
-        with h5py.File(matName + '.h5', 'w') as f:
-            # Read and write the header as attributes of the root group
-            header_keys = [key for key in s_file.attrs.keys() if key.startswith('header')]
-            # header_keys = ['header0', 'header1', 'header2', 'header3', 'header4', 'header5', 
-            # 'header6', 'header7', 'header8', 'header9']
-            for i, key in enumerate(header_keys):
-                f.attrs[key] = s_file.attrs[key]
+    # Convert int and float to np.ndarray
+    for key in s_struct.keys():
+        data = s_struct[key]
+        if isinstance(data, (int, float)):
+            s_struct[key] = np.array(data)
 
-            # Read and write other parameters as datasets
-            available_datasets = [key for key in s_file.keys() if isinstance(s_file[key], h5py.Dataset)]
-            available_groups = [key for key in s_file.keys() if isinstance(s_file[key], h5py.Group)]
+    # Create the output HDF5 file
+    with h5py.File(matName + '.h5', 'w') as f:
+        # Make a header for the file to be created with important parameters
+        header = [
+            '---------------------------------------------------------',
+            'Python-based Open-source Reactor Physics Education System',
+            '---------------------------------------------------------',
+            'Author: Siim Erik Pugal',
+            '',
+            'Macroscopic cross sections for water solution of uranium-235',
+            f'Water temperature:    {s_struct["temp"]:.1f} K',
+            f'Water pressure:       {s_struct["p"]:.1f} MPa',
+            f'Water density:        {s_struct["den"]:.5f} g/cm3',
+            f'U-235 concentration:  {s_struct["Uconc"]*1e6:.1f} ppm'
+        ]
 
-            for dataset in available_datasets:
-                f.create_dataset(dataset, data=s_file[dataset][()])
+        # Write the header as attributes of the root group
+        for i, line in enumerate(header):
+            f.attrs[f'header{i}'] = line
 
-            for group in available_groups:
-                s_group = s_file[group]
-                f_group = f.create_group(group)
-                for dataset_name, dataset in s_group.items():
-                    f_group.create_dataset(dataset_name, data=dataset[()])
+        # Convert non-array values to np.ndarray and write as datasets
+        for key in s_struct.keys():
+            data = s_struct[key]
+            if isinstance(data, np.ndarray):
+                f.create_dataset(key, data=data)
+            elif isinstance(data, list):
+                f.create_dataset(key, data=data)
+            elif isinstance(data, dict):
+                group = f.create_group(key)
+                for subkey, subdata in data.items():
+                    group.create_dataset(subkey, data=subdata)
+    
+        # Rest of the code remains unchanged
+        s_SigS = np.zeros((3, 421, 421))
+        for i in range(3):
+            s_SigS[i] = s_struct['SigS'][f'SigS[{i}]']
 
-            s_SigS = np.zeros((3, 421, 421))
-            for i in range(3):
-                s_SigS[i] = s_file['SigS'][f'SigS[{i}]'][()]
-
-            SigS_G = f.create_group("sigS_G")
-            ng = s_file['ng'][()]
-            #print(s_SigS.shape)
-            for j in range(s_SigS.shape[0]):
-            #    for j in range(s_SigS.shape[0]):
-                Sig = np.zeros(sp.sparse.find(s_SigS[j])[2].shape[0])
-                ito, ifrom, Sig = sp.sparse.find(s_SigS[j])
-                sigS_sparse = sp.sparse.coo_matrix((Sig, (ifrom, ito)), shape=(ng, ng))
-                sigS_new = sigS_sparse.toarray()
-                SigS_G.create_dataset(f"Sig({j})", data=Sig)
-                SigS_G.create_dataset(f"sparse_SigS({j})", data=sigS_new)
-            SigS_G.create_dataset("ifrom", data=ifrom)
-            SigS_G.create_dataset("ito", data=ito)
-
-            # (n,2n) matrix for 1 Legendre component
-            s_Sig2 = s_file['Sig2'][()]
-            Sig2_G = f.create_group("sig2_G")
-            Sig = np.zeros(sp.sparse.find(s_Sig2)[2].shape[0])
-            ito, ifrom, Sig = sp.sparse.find(s_Sig2)
+        SigS_G = f.create_group("sigS_G")
+        ng = s_struct['ng']
+        for j in range(s_SigS.shape[0]):
+            Sig = np.zeros(sp.sparse.find(s_SigS[j])[2].shape[0])
+            ito, ifrom, Sig = sp.sparse.find(s_SigS[j])
             sigS_sparse = sp.sparse.coo_matrix((Sig, (ifrom, ito)), shape=(ng, ng))
             sigS_new = sigS_sparse.toarray()
-            Sig2_G.create_dataset("Sig", data=Sig)
-            Sig2_G.create_dataset("sparse_Sig2", data=sigS_new)
-            Sig2_G.create_dataset("ifrom", data=ifrom)
-            Sig2_G.create_dataset("ito", data=ito)
+            SigS_G.create_dataset(f"Sig[{j}]", data=Sig)
+            SigS_G.create_dataset(f"sparse_SigS[{j}]", data=sigS_new)
+        SigS_G.attrs['description'] = f'Scattering matrix for {s_SigS.shape[0]} Legendre components'
+        SigS_G.create_dataset("ifrom", data=ifrom)
+        SigS_G.create_dataset("ito", data=ito)
 
-            f.create_dataset('fissile', data = 1)
-            if np.all(s_file['SigP'][0] == 0):
-                if 'fissile' in f:
-                    del f['fissile']
-                f.create_dataset('fissile', data=0)
-                if 'SigF' in f:
-                    del f['SigF']
-                f.create_dataset('SigF', data=np.zeros((1, ng)))
-                if 'SigP' in f:
-                    del f['SigP']
-                f.create_dataset('SigP', data=np.zeros((1, ng)))
-                if 'chi' in f:
-                    del f['chi']
-                f.create_dataset('chi', data=np.zeros((1, ng)))
-    
+        # Delete a group
+        if 'SigS' in f:
+            del f['SigS']
+
+        s_Sig2 = s_struct['Sig2']
+        Sig2_G = f.create_group("sig2_G")
+        Sig = np.zeros(sp.sparse.find(s_Sig2)[2].shape[0])
+        ito, ifrom, Sig = sp.sparse.find(s_Sig2)
+        sigS_sparse = sp.sparse.coo_matrix((Sig, (ifrom, ito)), shape=(ng, ng))
+        sigS_new = sigS_sparse.toarray()
+        Sig2_G.attrs['description'] = '(n,2n) matrix for 1 Legendre component'
+        Sig2_G.create_dataset("Sig", data=Sig)
+        Sig2_G.create_dataset("Sig2", data=sigS_new)
+        Sig2_G.create_dataset("ifrom", data=ifrom)
+        Sig2_G.create_dataset("ito", data=ito)
+
+        # Delete a dataset
+        if 'Sig2' in f:
+            del f['Sig2']
+        if "p" in f:    
+            del f["p"]
+        if "Uconc" in f:
+            del f["Uconc"]
+
+        f.create_dataset('fissile', data=1)
+        if np.all(s_struct['SigP'][0] == 0):
+            if 'fissile' in f:
+                del f['fissile']
+            f.create_dataset('fissile', data=0)
+            if 'SigF' in f:
+                del f['SigF']
+            f.create_dataset('SigF', data=np.zeros((1, ng)))
+            if 'SigP' in f:
+                del f['SigP']
+            f.create_dataset('SigP', data=np.zeros((1, ng)))
+            if 'chi' in f:
+                del f['chi']
+            f.create_dataset('chi', data=np.zeros((1, ng)))
+
     print('Done.')
+
 
 #=============================================================================================================
 """
 ===========================================================================
  Documentation for the main() section of the code:
 ---------------------------------------------------------------------------
- The function reads the MICROscopic group cross sections in Python
+ Author: Siim Erik Pugal, 2023
+
+ The function reads the MICROscopic group cross sections in HDF5
  format and calculates from them the MACROscopic cross sections for water
  solution of uranium-235 which is a homogeneous aqueous reactor.
 ===========================================================================
@@ -457,9 +486,9 @@ def main():
     hdf5_U235 = h5py.File(micro_XS_path + '/micro_U_235__294K.h5', 'r')     # INPUT
     print(f"File 'micro_U_235__294K.h5' has been read in.")
 
-    H2OU_temp = 294  # K                                                    # INPUT
-    H2OU_p = 0.1  # MPa                                                     # INPUT
-    H2OU_Uconc = 1000e-6  # 1e-6 = 1 ppm                                    # INPUT
+    H2OU["temp"] = 294  # K                                                    # INPUT
+    H2OU["p"] = 0.1  # MPa                                                     # INPUT
+    H2OU["Uconc"] = 1000e-6  # 1e-6 = 1 ppm                                    # INPUT
     H2OU["eg"] = np.array(hdf5_H01.get('en_G').get('eg'))   # From the group 'en_G' get subgroup containing the data named 'eg'
 
     # Get the atomic weight from the metadata
@@ -469,13 +498,13 @@ def main():
     #print('\natomic_weight of H01: ', H01_aw,'\ndata type:', type(H01_aw))
 
     # Mass of one "average" H2OU molecule in atomic unit mass [a.u.m.]:
-    H2OU["aw"] = 2 * H01_aw + O16_aw + H2OU_Uconc * U235_aw
+    H2OU["aw"] = 2 * H01_aw + O16_aw + H2OU["Uconc"] * U235_aw
 
 
     # The function returns water density at specified pressure (MPa) and
     # temperature (C):
     steamTable = XSteam(XSteam.UNIT_SYSTEM_MKS)
-    density = steamTable.rho_pt(H2OU_p/10, H2OU_temp-273)
+    density = steamTable.rho_pt(H2OU["p"]/10, H2OU["temp"]-273)
 
     # The water density:
     H2OU["den"] = density*1e-3  # [g/cm3]
@@ -487,7 +516,7 @@ def main():
     H2OU["isoName"] = ['H01', 'O16', 'U235']
 
     # The number densities of isotopes:
-    H2OU["numDen"] = np.array([2*rho, rho, rho*H2OU_Uconc])
+    H2OU["numDen"] = np.array([2*rho, rho, rho*H2OU["Uconc"]])
 
 
     # Get total micrscopic cross-section data 
@@ -614,9 +643,9 @@ def main():
     sigS = np.zeros((3, 3, 421, 421))
     for j in range(3):
         #start_time = time.time()
-        sigS[j, 0, :, :] = interpSigS(j, 'H01',  H2OU_temp, H2OU["sig0"][0, :])
-        sigS[j, 1, :, :] = interpSigS(j, 'O16',  H2OU_temp, H2OU["sig0"][1, :])
-        sigS[j, 2, :, :] = interpSigS(j, 'U235', H2OU_temp, H2OU["sig0"][2, :])
+        sigS[j, 0, :, :] = interpSigS(j, 'H01',  H2OU["temp"], H2OU["sig0"][0, :])
+        sigS[j, 1, :, :] = interpSigS(j, 'O16',  H2OU["temp"], H2OU["sig0"][1, :])
+        sigS[j, 2, :, :] = interpSigS(j, 'U235', H2OU["temp"], H2OU["sig0"][2, :])
         #elapsed_time = time.time() - start_time
         #print(f"Elapsed time for iteration {j+1}: {elapsed_time} seconds")
 
@@ -634,13 +663,13 @@ def main():
 
     H2OU_SigS = np.zeros((3, 421, 421))
     for j in range(3):
-        H2OU_SigS[j] = sigS[j, 0]*aDen[0] + sigS[j, 1]*aDen[1] + sigS[j, 2]*aDen[2]
+        H2OU_SigS[j] = np.transpose(sigS[j, 0]*aDen[0] + sigS[j, 1]*aDen[1] + sigS[j, 2]*aDen[2])
 
     H01_sig2  = np.array(hdf5_H01.get('sig2_G').get('sig2'))
     O16_sig2  = np.array(hdf5_O16.get('sig2_G').get('sig2'))
     U235_sig2 = np.array(hdf5_U235.get('sig2_G').get('sig2'))
 
-    H2OU["Sig2"] = H01_sig2 * aDen[0] + O16_sig2 * aDen[1] + U235_sig2 * aDen[2]
+    H2OU["Sig2"] = np.transpose(H01_sig2 * aDen[0] + O16_sig2 * aDen[1] + U235_sig2 * aDen[2])
     H2OU["SigT"] = H2OU["SigC"] + H2OU["SigL"] + H2OU["SigF"] + np.sum(H2OU_SigS[0], axis=1) + np.sum(H2OU["Sig2"], axis=1)
 
     # Add SigS matrices to dictionary
@@ -656,53 +685,13 @@ def main():
     H2OU["numDen"] = H2OU["numDen"]*1e24
 
     # Make a file name which includes the isotope name and the temperature
-    if H2OU_temp < 1000:
-        matName = f'macro421_H2OU__{round(H2OU_temp)}K'  # name of the file with a temperature index
+    if H2OU["temp"] < 1000:
+        matName = f'macro421_H2OU__{round(H2OU["temp"])}K'  # name of the file with a temperature index
     else:
-        matName = f'macro421_H2OU_{round(H2OU_temp)}K'  # name of the file with a temperature index
+        matName = f'macro421_H2OU_{round(H2OU["temp"])}K'  # name of the file with a temperature index
 
-    # Create the HDF5 file
-    with h5py.File("H2OU.h5", 'w') as hdf:
-        # Make a header for the file to be created with important parameters
-        header = [
-            '---------------------------------------------------------',
-            'Python-based Open-source Reactor Physics Education System',
-            '---------------------------------------------------------',
-            'Author: Siim Erik Pugal',
-            '',
-            'Macroscopic cross sections for water solution of uranium-235',
-            f'Water temperature:    {H2OU_temp:.1f} K',
-            f'Water pressure:       {H2OU_p:.1f} MPa',
-            f'Water density:        {H2OU["den"]:.5f} g/cm3',
-            f'U-235 concentration:  {H2OU_Uconc*1e6:.1f} ppm'
-        ]
-
-        # Write the header as attributes of the root group
-        for i, line in enumerate(header):
-            hdf.attrs[f'header{i}'] = line
-
-        H2OU['SigP'][0] = 0
-
-        # Convert integer or float values to NumPy arrays
-        for key in H2OU.keys():
-            data = H2OU[key]
-            if isinstance(data, (int, float)):
-                H2OU[key] = np.array(data)
-
-        # Write the macroscopic cross sections as datasets
-        # Write datasets and groups based on H2OU keys
-        for key in H2OU.keys():
-            data = H2OU[key]
-            if isinstance(data, np.ndarray):
-                hdf.create_dataset(key, data=data)
-            elif isinstance(data, list):
-                hdf.create_dataset(key, data=data)
-            elif isinstance(data, dict):
-                group = hdf.create_group(key)
-                for subkey, subdata in data.items():
-                    group.create_dataset(subkey, data=subdata)
-
-    writeMacroXS('H2OU.h5', matName)
+    # Write data to HDF5 file
+    writeMacroXS(H2OU, matName)
 
     # Close the HDF5 files
     hdf5_H01.close()

@@ -5,6 +5,7 @@ import scipy as sp
 from numba import njit
 from pyXSteam.XSteam import XSteam
 
+#=====================================================================================
 def sigmaZeros(sigTtab, sig0tab, aDen, SigEscape):
     # Number of energy groups
     ng = 421
@@ -66,6 +67,7 @@ def sigmaZeros(sigTtab, sig0tab, aDen, SigEscape):
 
     return sig0
 
+#=====================================================================================
 def initPWR_like():
     #global global_g
     with h5py.File("..//00.Lib/initPWR_like.h5", "w") as hdf:
@@ -233,6 +235,7 @@ def initPWR_like():
         th.create_dataset("h", data = th_h)
         th.create_dataset("p", data = th_p)
 
+#=====================================================================================
 def readPWR_like(input_keyword):
     # Define the mapping of input keyword to group name
     group_mapping = {
@@ -413,6 +416,7 @@ def read_matpro(input_keyword):
 
     return data
 
+#=====================================================================================
 # Define the psi function explicitly
 def psi(k1, k2, M1, M2):
     return (1 + np.sqrt(np.sqrt(M1 / M2) * k1 / k2)) ** 2 / np.sqrt(8 * (1 + M1 / M2))
@@ -519,82 +523,103 @@ def interpSigS(jLgn, element, temp, Sig0):
     - "matName.h5": HDF5 file
 ==========================================================
 """
-def writeMacroXS(s_filename, matName):
+def writeMacroXS(s_struct, matName):
     print(f'Write macroscopic cross sections to the file: {matName}.h5')
     
-    # Open the input HDF5 file
-    with h5py.File(s_filename, 'r') as s_file:
-        # Create the output HDF5 file
-        with h5py.File(matName + '.h5', 'w') as f:
-            # Read and write the header as attributes of the root group
-            header_keys = [key for key in s_file.attrs.keys() if key.startswith('header')]
-            # header_keys = ['header0', 'header1', 'header2', 'header3', 'header4', 'header5', 
-            # 'header6', 'header7', 'header8', 'header9']
-            for i, key in enumerate(header_keys):
-                f.attrs[key] = s_file.attrs[key]
+    # Convert int and float to np.ndarray
+    for key in s_struct.keys():
+        data = s_struct[key]
+        if isinstance(data, (int, float)):
+            s_struct[key] = np.array(data)
 
+    # Create the output HDF5 file
+    with h5py.File(matName + '.h5', 'w') as f:
+        # Make a header for the file to be created with important parameters
+        header = [
+            '---------------------------------------------------------',
+            'Python-based Open-source Reactor Physics Education System',
+            '---------------------------------------------------------',
+            'Author: Siim Erik Pugal',
+            '',
+            'Macroscopic cross sections for water solution of uranium-235'
+        ]
 
-            # Read and write other parameters as datasets
-            available_datasets = [key for key in s_file.keys() if isinstance(s_file[key], h5py.Dataset)]
-            available_groups = [key for key in s_file.keys() if isinstance(s_file[key], h5py.Group)]
+        # Write the header as attributes of the root group
+        for i, line in enumerate(header):
+            f.attrs[f'header{i}'] = line
+            
+        # Convert non-array values to np.ndarray and write as datasets
+        for key in s_struct.keys():
+            data = s_struct[key]
+            if isinstance(data, np.ndarray):
+                f.create_dataset(key, data=data)
+            elif isinstance(data, list):
+                f.create_dataset(key, data=data)
+            elif isinstance(data, dict):
+                group = f.create_group(key)
+                for subkey, subdata in data.items():
+                    group.create_dataset(subkey, data=subdata)
+    
+        # Rest of the code remains unchanged
+        s_SigS = np.zeros((3, 421, 421))
+        for i in range(3):
+            s_SigS[i] = s_struct['SigS'][f'SigS[{i}]']
 
-            for dataset in available_datasets:
-                f.create_dataset(dataset, data=s_file[dataset][()])
-
-            for group in available_groups:
-                s_group = s_file[group]
-                f_group = f.create_group(group)
-                for dataset_name, dataset in s_group.items():
-                    f_group.create_dataset(dataset_name, data=dataset[()])
-
-
-            s_SigS = np.zeros((3, 421, 421))
-            for i in range(3):
-                s_SigS[i] = s_file['SigS'][f'SigS[{i}]'][()]
-
-            SigS_G = f.create_group("sigS_G")
-            ng = s_file['ng'][()]
-            #print(s_SigS.shape)
-            for j in range(s_SigS.shape[0]):
-            #    for j in range(s_SigS.shape[0]):
-                Sig = np.zeros(sp.sparse.find(s_SigS[j])[2].shape[0])
-                ito, ifrom, Sig = sp.sparse.find(s_SigS[j])
-                sigS_sparse = sp.sparse.coo_matrix((Sig, (ifrom, ito)), shape=(ng, ng))
-                sigS_new = sigS_sparse.toarray()
-                SigS_G.create_dataset(f"Sig({j})", data=Sig)
-                SigS_G.create_dataset(f"sparse_SigS({j})", data=sigS_new)
-            SigS_G.create_dataset("ifrom", data=ifrom)
-            SigS_G.create_dataset("ito", data=ito)
-
-            # (n,2n) matrix for 1 Legendre component
-            s_Sig2 = s_file['Sig2'][()]
-            Sig2_G = f.create_group("sig2_G")
-            Sig = np.zeros(sp.sparse.find(s_Sig2)[2].shape[0])
-            ito, ifrom, Sig = sp.sparse.find(s_Sig2)
+        SigS_G = f.create_group("sigS_G")
+        ng = s_struct['ng']
+        for j in range(s_SigS.shape[0]):
+            Sig = np.zeros(sp.sparse.find(s_SigS[j])[2].shape[0])
+            ito, ifrom, Sig = sp.sparse.find(s_SigS[j])
             sigS_sparse = sp.sparse.coo_matrix((Sig, (ifrom, ito)), shape=(ng, ng))
             sigS_new = sigS_sparse.toarray()
-            Sig2_G.create_dataset("Sig", data=Sig)
-            Sig2_G.create_dataset("sparse_Sig2", data=sigS_new)
-            Sig2_G.create_dataset("ifrom", data=ifrom)
-            Sig2_G.create_dataset("ito", data=ito)
+            SigS_G.create_dataset(f"Sig[{j}]", data=Sig)
+            SigS_G.create_dataset(f"sparse_SigS[{j}]", data=sigS_new)
+        SigS_G.attrs['description'] = f'Scattering matrix for {s_SigS.shape[0]} Legendre components'
+        SigS_G.create_dataset("ifrom", data=ifrom)
+        SigS_G.create_dataset("ito", data=ito)
 
-            f.create_dataset('fissile', data = 1)
-            if np.all(s_file['SigP'][0] == 0):
-                if 'fissile' in f:
-                    del f['fissile']
-                f.create_dataset('fissile', data = 0)
-                if 'SigF' in f:
-                    del f['SigF']
-                f.create_dataset('SigF', data=np.zeros((1, ng)))
-                if 'SigP' in f:
-                    del f['SigP']
-                f.create_dataset('SigP', data=np.zeros((1, ng)))
-                if 'chi' in f:
-                    del f['chi']
-                f.create_dataset('chi', data=np.zeros((1, ng)))
-    
-    print('Done.')
+        # Delete a group
+        if 'SigS' in f:
+            del f['SigS']
 
+        s_Sig2 = s_struct['Sig2']
+        Sig2_G = f.create_group("sig2_G")
+        Sig = np.zeros(sp.sparse.find(s_Sig2)[2].shape[0])
+        ito, ifrom, Sig = sp.sparse.find(s_Sig2)
+        sigS_sparse = sp.sparse.coo_matrix((Sig, (ifrom, ito)), shape=(ng, ng))
+        sigS_new = sigS_sparse.toarray()
+        Sig2_G.attrs['description'] = 'Python-based Neutron Transport Simulation'
+        Sig2_G.create_dataset("Sig", data=Sig)
+        Sig2_G.create_dataset("sparse_Sig2", data=sigS_new)
+        Sig2_G.create_dataset("ifrom", data=ifrom)
+        Sig2_G.create_dataset("ito", data=ito)
+
+        # Delete a dataset
+        if 'Sig2' in f:
+            del f['Sig2']
+        if "p" in f:    
+            del f["p"]
+        if "Uconc" in f:
+            del f["Uconc"]
+
+        f.create_dataset('fissile', data=1)
+        if np.all(s_struct['SigP'][0] == 0):
+            if 'fissile' in f:
+                del f['fissile']
+            f.create_dataset('fissile', data=0)
+            if 'SigF' in f:
+                del f['SigF']
+            f.create_dataset('SigF', data=np.zeros((1, ng)))
+            if 'SigP' in f:
+                del f['SigP']
+            f.create_dataset('SigP', data=np.zeros((1, ng)))
+            if 'chi' in f:
+                del f['chi']
+            f.create_dataset('chi',  data=np.zeros((1, ng)))
+
+    print('Done.\n')
+
+#=====================================================================================
 def prepareIntoND(*matrices):
     num_cells = len(matrices)
     num_rows_per_cell = [matrix.shape[0] for matrix in matrices]
@@ -609,6 +634,18 @@ def prepareIntoND(*matrices):
         result3D[cell, :num_rows, :] = matrices[cell]
 
     return result3D
+
+#=====================================================================================
+def prep2D(group):
+    subgroups_data = []
+
+    def get_data(name, obj):
+        if isinstance(obj, h5py.Dataset):
+            subgroup_data = np.array(obj)
+            subgroups_data.append(subgroup_data)
+
+    group.visititems(get_data)
+    return np.array(subgroups_data) 
 """
 =====================================================================================
  Documentation for the main() section of the code:
@@ -742,7 +779,7 @@ def main():
     hdf5_B10 = h5py.File(micro_XS_path + '/micro_B_010__600K.h5', 'r')  # INPUT
     print(f"File 'micro_B_010__600K.h5' has been read in.")
     hdf5_B11 = h5py.File(micro_XS_path + '/micro_B_011__600K.h5', 'r')  # INPUT
-    print(f"File 'micro_B_011__600K.h5' has been read in.")
+    print(f"File 'micro_B_011__600K.h5' has been read in.\n")
 
     H2OB = {}
     H2OB['temp']  = 600,  # K INPUT
@@ -776,54 +813,29 @@ def main():
                     rho * g['cool']['vFrac'],
                     rho * H2OB['bConc'] * molFrB[0] * g['cool']['vFrac'],
                     rho * H2OB['bConc'] * molFrB[1] * g['cool']['vFrac']]
-
-    #--------------------------------------------------------------------------
-    def prep2D(group):
-        subgroups_data = []
-
-        def get_data(name, obj):
-            if isinstance(obj, h5py.Dataset):
-                subgroup_data = np.array(obj)
-                subgroups_data.append(subgroup_data)
-
-        group.visititems(get_data)
-        return np.array(subgroups_data) # The output is np.array([[data]]) 
-                                        # That is useful for np.concatenate()
-
+                                        
+    #-------------------------------------------------------------------------------------------------------------
     # Prepare for sigma-zero iterations:
-    #sigTtab = np.zeros((12, 10, 421))
     sigTtab = prepareIntoND(
                 prep2D(hdf5_U235.get('sigT_G')), prep2D(hdf5_U238.get('sigT_G')), prep2D(hdf5_O16 .get('sigT_G')), 
                 prep2D(hdf5_ZR90.get('sigT_G')), prep2D(hdf5_ZR91.get('sigT_G')), prep2D(hdf5_ZR92.get('sigT_G')), 
                 prep2D(hdf5_ZR94.get('sigT_G')), prep2D(hdf5_ZR96.get('sigT_G')), prep2D(hdf5_H01 .get('sigT_G')), 
                 prep2D(hdf5_O16 .get('sigT_G')), prep2D(hdf5_B10 .get('sigT_G')), prep2D(hdf5_B11 .get('sigT_G'))
             )
-    #sig0tab = np.zeros((12, 1, 10))
-    #sig0_U235 = np.array(hdf5_U235.get('sig0_G').get('sig0'))
-    #sig0tabInit = np.concatenate([
-    #            np.array(hdf5_U235.get('sig0_G').get('sig0')), np.array(hdf5_U238.get('sig0_G').get('sig0')), np.array(hdf5_O16 .get('sig0_G').get('sig0')), 
-    #            np.array(hdf5_ZR90.get('sig0_G').get('sig0')), np.array(hdf5_ZR91.get('sig0_G').get('sig0')), np.array(hdf5_ZR92.get('sig0_G').get('sig0')), 
-    #            np.array(hdf5_ZR94.get('sig0_G').get('sig0')), np.array(hdf5_ZR96.get('sig0_G').get('sig0')), np.array(hdf5_H01 .get('sig0_G').get('sig0')), 
-    #            np.array(hdf5_O16 .get('sig0_G').get('sig0')), np.array(hdf5_B10 .get('sig0_G').get('sig0')), np.array(hdf5_B11 .get('sig0_G').get('sig0'))],
-    #            axis=0)
 
-    #sig0_sizes = [10,10,6,6,6,6,6,6,1,6,6,6]
-    isotopes12 = ['U235', 'U238', 'O16', 'ZR90', 'ZR91', 'ZR92', 'ZR94', 'ZR96', 'H01', 'O16', 'B10', 'B11']
+    PWRmix["isoName"] = ['U235', 'U238', 'O16', 'ZR90', 'ZR91', 'ZR92', 'ZR94', 'ZR96', 'H01', 'O16', 'B10', 'B11']
     sig0_sizes = []
     for i in range(12):
-        sig0_sizes.append(len(np.array(eval(f'hdf5_{isotopes12[i]}').get('sig0_G').get('sig0'))))
+        sig0_sizes.append(len(np.array(eval(f'hdf5_{PWRmix["isoName"][i]}').get('sig0_G').get('sig0'))))
         #print(len(np.array(eval(f'hdf5_{isotope[i]}').get('sig0_G').get('sig0'))))
     sig0tab = np.zeros((12, max(sig0_sizes)))
     for i, size in enumerate(sig0_sizes):
         #print("i =", i, "size =", size)
-        sig0tab[i, :size] = np.array(eval(f'hdf5_{isotopes12[i]}').get('sig0_G').get('sig0'))
+        sig0tab[i, :size] = np.array(eval(f'hdf5_{PWRmix["isoName"][i]}').get('sig0_G').get('sig0'))
 
-    #matter = ['UO2_03', 'Zry', 'H2OB']
-    #aDen_sizes = [len(UO2_03['numDen']), len(Zry['numDen']), len(H2OB['numDen'])]
-    #aDen = np.zeros((3, max(aDen_sizes)))
-    #for i, size in enumerate(aDen_sizes):
-    #    aDen[i, :size] = eval(matter[i])['numDen']
     aDen = np.concatenate([UO2_03['numDen'], Zry['numDen'], H2OB['numDen']])
+
+
     # SigEscape -- escape cross section, for simple convex objects (such as
     # plates, spheres, or cylinders) is given by S/(4V), where V and S are the
     # volume and surface area of the object, respectively
@@ -844,46 +856,44 @@ def main():
     #-------------------------------------------------------------------------------------------
     sigL_sizes = []
     for i in range(12):
-        sigL_data = np.array(eval(f'hdf5_{isotopes12[i]}').get('sigL_G').get('sigL'))
+        sigL_data = np.array(eval(f'hdf5_{PWRmix["isoName"][i]}').get('sigL_G').get('sigL'))
         sigL_sizes.append(len(sigL_data))
 
     maxL_size = max(sigL_sizes)
     sigLtab = np.zeros((12, maxL_size, 421))
     col_start = 0
     for i, size in enumerate(sigL_sizes):
-        sigL_data = np.array(eval(f'hdf5_{isotopes12[i]}').get('sigL_G').get('sigL'))
+        sigL_data = np.array(eval(f'hdf5_{PWRmix["isoName"][i]}').get('sigL_G').get('sigL'))
         sigLtab[i, :size, col_start:col_start+421] = sigL_data.reshape(size, 421)
     #-------------------------------------------------------------------------------------------
     sigF_sizes = []
     for i in range(12):
-        sigF_data = prep2D(eval(f'hdf5_{isotopes12[i]}').get('sigF_G'))
+        sigF_data = prep2D(eval(f'hdf5_{PWRmix["isoName"][i]}').get('sigF_G'))
         sigF_sizes.append(len(sigF_data))
 
     maxF_size = max(sigF_sizes)
     sigFtab = np.zeros((12, maxF_size, 421))
     col_start = 0
     for i, size in enumerate(sigF_sizes):
-        sigF_data = prep2D(eval(f'hdf5_{isotopes12[i]}').get('sigF_G'))
+        sigF_data = prep2D(eval(f'hdf5_{PWRmix["isoName"][i]}').get('sigF_G'))
         reshaped_data = sigF_data.reshape(1, size, -1)  # Reshape to (1, size, N)
         sigFtab[i, :size, col_start:col_start+reshaped_data.shape[2]] = reshaped_data[:, :, :421]
     #-------------------------------------------------------------------------------------------
     sig2_sizes = []
     for i in range(12):
-        sig2_data = np.array(eval(f'hdf5_{isotopes12[i]}').get('sig2_G').get('sig2'))
+        sig2_data = np.array(eval(f'hdf5_{PWRmix["isoName"][i]}').get('sig2_G').get('sig2'))
         sig2_sizes.append(len(sig2_data))
 
     max2_size = max(sig2_sizes)
     sig2 = np.zeros((12, max2_size, 421))
     col_start = 0
     for i in range(len(sig2_sizes)):
-        sig2_data = np.array(eval(f'hdf5_{isotopes12[i]}').get('sig2_G').get('sig2'))
+        sig2_data = np.array(eval(f'hdf5_{PWRmix["isoName"][i]}').get('sig2_G').get('sig2'))
         reshaped_data = sig2_data.reshape(1, sig2_data.shape[0], sig2_data.shape[1])  # Reshape to (1, M, N)
         sig2[i, :sig2_data.shape[0], col_start:col_start+sig2_data.shape[1]] = reshaped_data[:, :max2_size, :421]
 
     # Initialize sigC, sigL, sigF 
     sigC, sigL, sigF = np.zeros((12, PWRmix['ng'])), np.zeros((12, PWRmix['ng'])), np.zeros((12, PWRmix['ng']))
-
-
 
     for ig in range(PWRmix['ng']):
         # Number of isotopes in the mixture
@@ -897,21 +907,12 @@ def main():
                 sigL[iIso, ig] = sigLtab[iIso][0, ig]
                 sigF[iIso, ig] = sigFtab[iIso][0, ig]
             else:
-                #log10sig0 = min(10, max(0, np.log10(PWRmix['sig0'][iIso, ig])))
-                #arrayLength = len(sig0tab[iIso][np.nonzero(sig0tab[iIso])])
-                #sigC[iIso, ig] = interpolate_data(np.log10(sig0tab[iIso][:arrayLength]), sigCtab[iIso][:arrayLength, ig], log10sig0)
-                #sigL[iIso, ig] = interpolate_data(np.log10(sig0tab[iIso][:arrayLength]), sigLtab[iIso][:arrayLength, ig], log10sig0) # May need fixing but work at the moment
-                #sigF[iIso, ig] = interpolate_data(np.log10(sig0tab[iIso][:arrayLength]), sigFtab[iIso][:arrayLength, ig], log10sig0) 
                 log10sig0 = min(10, max(0, np.log10(PWRmix['sig0'][iIso, ig])))
                 arrayLength = len(sig0tab[iIso][np.nonzero(sig0tab[iIso])])
                 x = np.log10(sig0tab[iIso][:arrayLength])
                 y_sigC = sigCtab[iIso][:arrayLength, ig]
                 y_sigL = sigLtab[iIso][:arrayLength, ig]
                 y_sigF = sigFtab[iIso][:arrayLength, ig]
-                
-                #temp_sigC = interpolate_data(x, y_sigC, log10sig0)
-                #temp_sigL = interpolate_data(x, y_sigL, log10sig0)
-                #temp_sigF = interpolate_data(x, y_sigF, log10sig0)
 
                 temp_sigC = np.interp(log10sig0, x, y_sigC)
                 temp_sigL = np.interp(log10sig0, x, y_sigL)
@@ -927,19 +928,13 @@ def main():
                     sigC[iIso, ig] = temp_sigC
                     sigL[iIso, ig] = temp_sigL
                     sigF[iIso, ig] = temp_sigF
-                
-                #print(f"Interpolation result for sigC[{iIso}, {ig}]: {sigC[iIso, ig]}")
-                #print(f"Interpolation result for sigL[{iIso}, {ig}]: {sigL[iIso, ig]}")
-                #print(f"Interpolation result for sigF[{iIso}, {ig}]: {sigF[iIso, ig]}")
-
 
     sigS = np.zeros((3, 12, 421, 421))
-
     for i in range(3):
         for j in range(12):
-            sigS[i][j] = interpSigS(i, isotopes12[j], Zry['temp'], PWRmix['sig0'][j, :])
+            sigS[i][j] = interpSigS(i, PWRmix["isoName"][j], Zry['temp'], PWRmix['sig0'][j, :])
 
-    print('Done.')
+    print('Done.\n')
 
     # Macroscopic cross section [1/cm] is microscopic cross section for the 
     # "average" molecule [barn] times the number density [number of
@@ -952,12 +947,14 @@ def main():
     #PWRmix['SigS'] = [None] * 3
     PWRmix_SigS = np.zeros((3,PWRmix['ng'], PWRmix['ng']))
     for j in range(3):
-        PWRmix_SigS[j] = (  sigS[j, 0] * aDen[0] + sigS[j, 1] * aDen[1] + sigS[j, 2] * aDen[2] +
+        PWRmix_SigS[j] = np.transpose(  
+                            sigS[j, 0] * aDen[0] + sigS[j, 1] * aDen[1] + sigS[j, 2] * aDen[2] +
                             sigS[j, 3] * aDen[3] + sigS[j, 4] * aDen[4] + sigS[j, 5] * aDen[5] +
                             sigS[j, 6] * aDen[6] + sigS[j, 7] * aDen[7] + sigS[j, 8] * aDen[8] +
                             sigS[j, 9] * aDen[9] + sigS[j, 10]* aDen[10]+ sigS[j, 11]* aDen[11] )
 
-    PWRmix['Sig2'] = (  sig2[0] * aDen[0] + sig2[1] * aDen[1] + sig2[2] * aDen[2] + sig2[3] * aDen[3] +
+    PWRmix['Sig2'] = np.transpose(  
+                        sig2[0] * aDen[0] + sig2[1] * aDen[1] + sig2[2] * aDen[2] + sig2[3] * aDen[3] +
                         sig2[4] * aDen[4] + sig2[5] * aDen[5] + sig2[6] * aDen[6] + sig2[7] * aDen[7] +
                         sig2[8] * aDen[8] + sig2[9] * aDen[9] + sig2[10] * aDen[10] + sig2[11] * aDen[11]   )
 
@@ -973,82 +970,42 @@ def main():
     PWRmix['chi'] = np.array(hdf5_U235.get('chi_G').get('chi'))
 
     # Number of fissile isotopes, macroscopic production cross section, and fission spectrum for every fissile isotope
-    PWRmix['nFis'] = 2
+    PWRmix_nFis = 2
     PWRmix['fis'] = {}
-    PWRmix['fis']['SigP'] = np.zeros((2, sigF.shape[1]))
+    PWRmix['fis']['SigP'] = np.zeros((PWRmix_nFis, sigF.shape[1]))
     PWRmix['fis']['SigP'][0, :] = prep2D(hdf5_U235.get('nubar_G')) * sigF[0, :] * aDen[0]
     PWRmix['fis']['SigP'][1, :] = prep2D(hdf5_U238.get('nubar_G')) * sigF[1, :] * aDen[1]
 
-    PWRmix['fis']['chi'] = np.zeros((2, np.array(hdf5_U235.get('chi_G').get('chi')).shape[0]))
+    PWRmix['fis']['chi'] = np.zeros((PWRmix_nFis, np.array(hdf5_U235.get('chi_G').get('chi')).shape[0]))
     PWRmix['fis']['chi'][0, :] = np.array(hdf5_U235.get('chi_G').get('chi'))
     PWRmix['fis']['chi'][1, :] = np.array(hdf5_U238.get('chi_G').get('chi'))
 
     # Make a file name which includes the isotope name
     matName = 'macro421_PWR_like_mix'
 
-    # Create the HDF5 file
-    with h5py.File("PWRmix.h5", 'w') as hdf:
-        # Make a header for the file to be created with important parameters
-        header = [
-            '---------------------------------------------------------',
-            'Python-based Open-source Reactor Physics Education System',
-            '---------------------------------------------------------',
-            'Author: Siim Erik Pugal.',
-            '',
-            'Macroscopic cross sections for homogeneos mixture of PWR unit cell materials'
-        ]
+    # Just write zeros for aw, den and temp
+    PWRmix["aw"]   = 0
+    PWRmix["den"]  = 0
+    PWRmix["temp"] = 0
 
-        # Write the header as attributes of the root group
-        for i, line in enumerate(header):
-            hdf.attrs[f'header{i + 1}'] = line
+    # Finally, create the file with macroscopic cross sections
+    writeMacroXS(PWRmix, matName)
 
-        # Just write zeros for aw, den, and temp
-        hdf.create_dataset('aw',    data=0)
-        hdf.create_dataset('den',   data=0)
-        hdf.create_dataset('temp',  data=0)
+    # Print number density information
+    print(f"U235 {UO2_03['numDen'][0]}")
+    print(f"U238 {UO2_03['numDen'][1]}")
+    print(f"O16  {UO2_03['numDen'][2]}")
 
-        # Change the units of number density from 1/(barn*cm) to 1/cm^2
-        PWRmix['numDen'] = aDen
-        #hdf.create_dataset('numDen', data=PWRmix['numDen']*1e24)
+    print(f"\nZr90 {Zry['numDen'][0]}")
+    print(f"Zr91 {Zry['numDen'][1]}")
+    print(f"Zr92 {Zry['numDen'][2]}")
+    print(f"Zr94 {Zry['numDen'][3]}")
+    print(f"Zr96 {Zry['numDen'][4]}")
 
-        # Store isoName arrays as attributes
-        isoName = hdf.create_group('isoName')
-        isoName.create_dataset('UO2_03', data = UO2_03['isoName'])
-        isoName.create_dataset('Zry',    data = Zry['isoName'])
-        isoName.create_dataset('H2OB',   data = H2OB['isoName'])
-
-        # Special case for PWRmix['ng'] = 421
-        PWRmix['ng'] = np.array(PWRmix['ng'])
-
-        # Write datasets and groups based on PWRmix keys
-        for key in PWRmix.keys():
-            data = PWRmix[key]
-            if isinstance(data, np.ndarray):
-                hdf.create_dataset(key, data=data)
-            elif isinstance(data, dict):
-                group = hdf.create_group(key)
-                for subkey, subdata in data.items():
-                    group.create_dataset(subkey, data=subdata)
-
-        # Finally, create the file with macroscopic cross sections
-        writeMacroXS("PWRmix.h5", matName)
-
-        # Print number density information
-        print(f"U235 {UO2_03['numDen'][0]}")
-        print(f"U238 {UO2_03['numDen'][1]}")
-        print(f"O16 {UO2_03['numDen'][2]}")
-
-        print(f"\nZr90 {Zry['numDen'][0]}")
-        print(f"Zr91 {Zry['numDen'][1]}")
-        print(f"Zr92 {Zry['numDen'][2]}")
-        print(f"Zr94 {Zry['numDen'][3]}")
-        print(f"Zr96 {Zry['numDen'][4]}")
-
-        print(f"\nH2 {H2OB['numDen'][0]}")
-        print(f"O16 {H2OB['numDen'][1]}")
-        print(f"B10 {H2OB['numDen'][2]}")
-        print(f"B11 {H2OB['numDen'][3]}")
-
+    print(f"\nH2  {H2OB['numDen'][0]}")
+    print(f"O16 {H2OB['numDen'][1]}")
+    print(f"B10 {H2OB['numDen'][2]}")
+    print(f"B11 {H2OB['numDen'][3]}")
 
     # Close HDF5 files
     hdf5_U235.close()
