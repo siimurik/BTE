@@ -25,6 +25,9 @@ Files for the master thesis on the topic named:
 * **createPWR_like_mix.m** converted to file **createPWR_mix.py**.
 * Significantly optimized the **convertCSV2H5.py** code. Improved version is named **boostedCSV2H5.py** and uses the [Numba](https://numba.readthedocs.io/en/stable/) just-in-time compiler. 
 ---
+* **createH2OB.m** - [Converted successfully]
+* New file is named **createH2OB.py**
+---
 Task 1. Download nuclear data from IAEA site.
 
 Folder: 01.Micro.XS.421g
