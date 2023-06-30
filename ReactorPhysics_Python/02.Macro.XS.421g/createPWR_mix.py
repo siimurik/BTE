@@ -666,29 +666,29 @@ def main():
     g = readPWR_like("g")
 
     # Path to microscopic cross section data:
-    micro_XS_path = '../01.Micro_Python'                # INPUT
+    micro_XS_path = '../01.Micro_Python'                                    # INPUT
 
     # Call the functions for UO2 isotopes and store the data in the structures
-    hdf5_U235 = h5py.File(micro_XS_path + '/micro_U_235__600K.h5', 'r')    # INPUT
+    hdf5_U235 = h5py.File(micro_XS_path + '/micro_U_235__600K.h5', 'r')     # INPUT
     print(f"File 'micro_U_235__600K.h5' has been read in.")
-    hdf5_U238 = h5py.File(micro_XS_path + '/micro_U_238__600K.h5', 'r')    # INPUT
+    hdf5_U238 = h5py.File(micro_XS_path + '/micro_U_238__600K.h5', 'r')     # INPUT
     print(f"File 'micro_U_238__600K.h5' has been read in.")
     hdf5_O16 = h5py.File(micro_XS_path + '/micro_O_016__600K.h5', 'r')      # INPUT
     print(f"File 'micro_O_016__600K.h5' has been read in.")
     PWRmix = {}
     PWRmix['ng'] = 421
-    PWRmix['eg'] = np.array(hdf5_U235.get('en_G').get('eg'))     # INPUT
+    PWRmix['eg'] = np.array(hdf5_U235.get('en_G').get('eg'))                # INPUT
 
     # UO2 ceramic fuel is manufactured with the density lower than the
     # theoretical density. The deviation is characterized with porosity which
     # is the volume of voids over the total volume of the material. 0.05 (95%
     # of theoretical density) is a typical value for UO2_03.
-    por = 0.05                                          # INPUT
+    por = 0.05                                                              # INPUT
 
     # Uranium is composed of two uranium isotopes: U235 and U238, the mass
     # fraction of the U235 isotopes is called enrichment. We will used molar
     # enrichment for simplicity (this is input data to be changed when needed):
-    molEnrich = 0.03                                    # INPUT
+    molEnrich = 0.03                                                        # INPUT
 
     # The molar fractions of U235 and U238
     molFrU = np.zeros(2)
@@ -782,9 +782,9 @@ def main():
     print(f"File 'micro_B_011__600K.h5' has been read in.\n")
 
     H2OB = {}
-    H2OB['temp']  = 600,  # K INPUT
-    H2OB['p']     = 16,  # MPa INPUT
-    H2OB['bConc'] = 4000e-6  # 1e-6 = 1 ppm INPUT
+    H2OB['temp']  = 600,                                                # K INPUT
+    H2OB['p']     = 16,                                                 # MPa INPUT
+    H2OB['bConc'] = 4000e-6                                             # 1e-6 = 1 ppm INPUT
 
     # Boron is composed of two stable isotopes: B10 and B11 with the following molar fractions
     molFrB = [0.199, 0.801]
