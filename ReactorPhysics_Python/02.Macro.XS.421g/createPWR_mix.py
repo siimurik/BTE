@@ -4,8 +4,32 @@ import numpy as np
 import scipy as sp
 from numba import njit
 from pyXSteam.XSteam import XSteam
+"""
+===========================================================================
+                sigmaZeros() Function Documentation
+---------------------------------------------------------------------------
+The 'sigmaZeros()' function calculates the background cross sections, 
+sigma-zeros, based on given input parameters. 
 
-#=====================================================================================
+**Inputs:**
+- 'sigTtab': A cell array containing matrices of total microscopic 
+    cross sections for each isotope. Each matrix has dimensions 
+    (nsigz x ng), where nsigz is the number of base points 
+    sigma-zeros and ng is the number of energy groups.
+- 'sig0tab': A cell array containing vectors of base points of 
+    tabulated sigma-zeros for each energy group.
+- 'aDen': A vector of atomic densities of isotopes.
+- 'SigEscape': The escape cross section (1/cm) for simple convex objects.
+
+**Outputs:**
+- 'sig0': A 2D matrix of sigma-zeros with dimensions (nIso x ng).
+- 'sigT': A 2D matrix of total macroscopic cross sections corrected 
+    with account for sigma-zero, with dimensions (nIso x ng).
+
+The function uses the input parameters to calculate the sigma-zeros and 
+the corrected total macroscopic cross sections.
+===========================================================================
+"""
 def sigmaZeros(sigTtab, sig0tab, aDen, SigEscape):
     # Number of energy groups
     ng = 421
@@ -67,7 +91,26 @@ def sigmaZeros(sigTtab, sig0tab, aDen, SigEscape):
 
     return sig0
 
-#=====================================================================================
+"""
+=====================================================================================
+    initPWR_like() Function Documentation
+-------------------------------------------------------------------------------------
+ Description:
+   This function sets the input parameters and initializes the
+   geometry and other parameters related to the fuel rod, cladding,
+   coolant, and channel in a pressurized water reactor (PWR) core unit cell.
+-------------------------------------------------------------------------------------
+ Example:
+   initPWR_like()
+
+ Global Variables:
+   This function sets and modifies the following global variables:
+     - g: Represents the overall geometry and nodalization of the fuel rod,
+          cladding, coolant, and channel.
+     - th: Represents various thermal-hydraulic parameters.
+     - fr: Represents parameters related to the fuel rod and fuel properties.
+=====================================================================================
+"""
 def initPWR_like():
     #global global_g
     with h5py.File("..//00.Lib/initPWR_like.h5", "w") as hdf:
@@ -235,7 +278,29 @@ def initPWR_like():
         th.create_dataset("h", data = th_h)
         th.create_dataset("p", data = th_p)
 
-#=====================================================================================
+"""
+=====================================================================================
+    readPWR_like() Function Documentation
+-------------------------------------------------------------------------------------
+ Description:
+    Reads data from an HDF5 file and returns the datasets based on the input keyword.
+-------------------------------------------------------------------------------------
+ Parameters:
+    input_keyword (str): The input keyword specifying the group name.
+ 
+ Returns:
+    data (dict): A dictionary containing the datasets.
+ 
+ Example:
+    data = readPWR_like("fr")
+ 
+ Notes:
+    - This function assumes that the HDF5 file 'initPWR_like.h5' is located
+        in the parent directory of the current directory.
+    - The HDF5 file should contain groups corresponding to different input
+        keywords, and each group should contain datasets.
+=====================================================================================
+"""
 def readPWR_like(input_keyword):
     # Define the mapping of input keyword to group name
     group_mapping = {
@@ -274,10 +339,28 @@ def readPWR_like(input_keyword):
                     # Store the dataset array in the dictionary
                     data[dataset_name] = dataset_array
 
-    # Access the datasets by their names
-    #print(data.keys())
+
     return data
 
+"""
+=======================================================================================================
+    matpro() Function Documentation
+-------------------------------------------------------------------------------------------------------
+ Description:
+    Creates an HDF5 file and stores material property data for UO2 and Zircaloy.
+-------------------------------------------------------------------------------------------------------
+ Example:
+    matpro()
+ 
+ Notes:
+    - This function creates an HDF5 file named 'matprop_UO2_zircaloy.h5' in the parent directory
+        of the current directory.
+    - The function defines material property equations and constants for UO2 and Zircaloy.
+    - The material properties include density, specific heat, thermal conductivity, thermal expansion,
+        Young's modulus, Poisson ratio, swelling rate, thermal creep rate, and more.
+    - The function stores the material property data in groups and datasets within the HDF5 file.
+=======================================================================================================
+"""
 def matpro():
     with h5py.File("..//00.Lib/matprop_UO2_zircaloy.h5", "w") as hdf:
         # UO2: theoretical density (kg/m3) MATPRO(2003) p. 2-56
@@ -391,6 +474,37 @@ def matpro():
         clad_group.attrs['n'] = clad_n
         clad_group.attrs['sigB'] = clad_sigB
 
+
+"""
+=====================================================================================================
+    read_matpro() Function Documentation
+-----------------------------------------------------------------------------------------------------
+ Description:
+    Reads material property data from an HDF5 file for a specific input keyword.
+-----------------------------------------------------------------------------------------------------
+ Parameters:
+    input_keyword (str): The keyword specifying the material group to read.
+                            Valid keywords: "clad", "fuel", "gap".
+ Returns:
+    data (dict): A dictionary containing the material property data.
+                    The dictionary keys correspond to the attribute and dataset names,
+                    and the values are the corresponding attribute values or dataset arrays.
+ Example:
+    data = read_matpro("fuel")
+
+ Notes:
+    - This function reads material property data from an HDF5 file named 'matprop_UO2_zircaloy.h5'
+        located in the parent directory of the current directory.
+    - The input keyword specifies the material group to read, which can be "clad", "fuel", or "gap".
+    - The function retrieves the corresponding group from the HDF5 file based on the input keyword.
+    - The function extracts the attribute values and dataset arrays from the group and stores them
+        in a dictionary.
+    - The dictionary keys are the attribute and dataset names, and the values are the corresponding
+        attribute values or dataset arrays.
+    - If the input keyword is not valid or no group is found for the keyword in the HDF5 file,
+        an empty dictionary is returned.
+=====================================================================================================
+"""
 def read_matpro(input_keyword):
     # Define the mapping of input keyword to group name
     group_mapping = {
@@ -427,10 +541,11 @@ def evaluate_equation(equation, **kwargs):
 
 """
 ======================================================================================
-Documentation interpSigS() function
+    interpSigS() Function Documentation
 --------------------------------------------------------------------------------------
- The interpSigS function performs interpolation to calculate the scattering matrix 
- sigS based on provided input parameters.
+ Description:
+    The interpSigS function performs interpolation to calculate the scattering matrix 
+    sigS based on provided input parameters.
  
  **Inputs**:
  - 'jLgn': An integer representing the index of the energy group.
@@ -504,6 +619,116 @@ def interpSigS(jLgn, element, temp, Sig0):
                 tmp2[i] = np.interp(np.log10(log10sig0), np.log10(s_sig0), tmp1[:, i])
 
             sigS = sp.sparse.coo_matrix((tmp2, (ifrom, ito)), shape=(ng, ng)).toarray()
+
+    return sigS
+
+"""
+====================================================
+ Numba boosted version of scipy.sparse.find() 
+====================================================
+"""
+@njit
+def numba_sparse_find(matrix):
+    rows, cols = [], []
+    values = []
+    for i in range(matrix.shape[0]):
+        for j in range(matrix.shape[1]):
+            if matrix[i, j] != 0:
+                rows.append(i)
+                cols.append(j)
+                values.append(matrix[i, j])
+    return np.array(rows), np.array(cols), np.array(values)
+
+"""
+====================================================
+ Numba boosted version of scipy.sparse.coo_matrix() 
+====================================================
+"""
+@njit
+def numba_coo_matrix(tmp2, ifrom, ito, shape):
+    coo_matrix = np.zeros(shape)
+    for i in range(len(ifrom)):
+        coo_matrix[ifrom[i], ito[i]] = tmp2[i]
+    return coo_matrix
+
+"""
+====================================================
+ Essential part of the interSigS() function that
+ handles the computationally heavy part
+====================================================
+"""
+@njit
+def numba_prep_interpSigS(jLgn, s_sig0, s_sigS, Sig0):
+    # Number of sigma-zeros
+    nSig0 = len(s_sig0)
+    if nSig0 == 1:
+        sigS = s_sigS[jLgn][0]
+    else:
+        tmp1 = np.zeros((nSig0, numba_sparse_find(s_sigS[jLgn][0])[2].shape[0]))
+        for iSig0 in range(nSig0):
+            ifrom, ito, tmp1[iSig0, :] = numba_sparse_find(s_sigS[jLgn][iSig0])
+
+        # Number of non-zeros in a scattering matrix
+        nNonZeros = tmp1.shape[1]
+        tmp2 = np.zeros(nNonZeros)
+        for i in range(nNonZeros):
+            log10sig0 = min(10, max(0, np.log10(Sig0[ifrom[i]])))
+            tmp2[i] = np.interp(np.log10(log10sig0), np.log10(s_sig0), tmp1[:, i])
+        shape = (421,421)
+        sigS = numba_coo_matrix(tmp2, ifrom, ito, shape)
+
+    return sigS
+"""
+=====================================================
+        Numba boosted version of interpSigS()
+=====================================================
+"""
+def boosted_interpSigS(jLgn, element, temp, Sig0):
+    # Number of energy groups
+    ng = 421
+    elementDict = {
+    'H01':  'H_001',
+    'O16':  'O_016',
+    'U235': 'U_235',
+    'U238': 'U_238',
+    'O16':  'O_016',
+    'ZR90': 'ZR090',
+    'ZR91': 'ZR091',
+    'ZR92': 'ZR092',
+    'ZR94': 'ZR094',
+    'ZR96': 'ZR096',
+    'B10':  'B_010',
+    'B11':  'B_011'
+    }
+    # Path to microscopic cross section data:
+    micro_XS_path = '../01.Micro_Python'
+    # Open the HDF5 file based on the element
+    filename = f"micro_{elementDict[element]}__{temp}K.h5"
+    with h5py.File(micro_XS_path + '/' + filename, 'r') as f:
+        s_sig0 = np.array(f.get('sig0_G').get('sig0'))
+        findSigS = list(f.get('sigS_G').items())
+        string = findSigS[-1][0]  # 'sigS(2,5)'
+
+        # Extract numbers using regular expression pattern
+        pattern = r"sigS\((\d+),(\d+)\)"
+        match = re.search(pattern, string)
+
+        if match:
+            x_4D = int(match.group(1)) + 1
+            y_4D = int(match.group(2)) + 1
+        else:
+            print("No match found.")
+
+        # Create the empty 3D numpy array
+        s_sigS = np.zeros((x_4D, y_4D, ng, ng))
+
+        # Access the data from the subgroups and store it in the 3D array
+        for i in range(x_4D):
+            for j in range(y_4D):
+                dataset_name = f'sigS({i},{j})'
+                s_sigS[i, j] = np.array(f.get('sigS_G').get(dataset_name))
+                
+        sigS = numba_prep_interpSigS(jLgn, s_sig0, s_sigS, Sig0)
 
     return sigS
 
@@ -619,7 +844,40 @@ def writeMacroXS(s_struct, matName):
 
     print('Done.\n')
 
-#=====================================================================================
+"""
+================================================================================
+    prepareIntoND() Function Documentation
+--------------------------------------------------------------------------------
+ Description:
+    Prepares a variable number of 2D matrices into a single 3D array.
+--------------------------------------------------------------------------------
+ Parameters:
+    *matrices (numpy.ndarray): Variable number of 2D matrices.
+        Each matrix represents a cell and must have the same number of columns.
+
+ Returns:
+    result3D (numpy.ndarray): A 3D array containing the prepared data.
+    The shape of the array is (num_cells, max_rows, num_cols).
+    - num_cells: Number of matrices/cells.
+    - max_rows: Maximum number of rows among all matrices.
+    - num_cols: Number of columns in each matrix.
+
+ Example:
+    matrix1 = np.array([[1, 2], [3, 4]])
+    matrix2 = np.array([[5, 6, 7], [8, 9, 10], [11, 12, 13]])
+    result = prepareIntoND(matrix1, matrix2)
+
+ Notes:
+    - This function takes a variable number of 2D matrices as input.
+    - Each matrix represents a cell and must have the same number of columns.
+    - The function determines the number of cells, the maximum number of rows 
+        among all matrices, and the number of columns in each matrix.
+    - It creates an empty 3D array with the desired shape using `np.zeros`.
+    - It fills the 3D array with data from the 2D matrices, aligning the rows 
+        based on the maximum number of rows.
+    - The resulting 3D array is returned.
+================================================================================
+"""
 def prepareIntoND(*matrices):
     num_cells = len(matrices)
     num_rows_per_cell = [matrix.shape[0] for matrix in matrices]
@@ -635,7 +893,36 @@ def prepareIntoND(*matrices):
 
     return result3D
 
-#=====================================================================================
+"""
+==================================================================================
+    prep2D() Function Documentation
+----------------------------------------------------------------------------------
+ Extracts data from a group of datasets and returns them as a 2D numpy array.
+----------------------------------------------------------------------------------
+ Parameters:
+    group (h5py.Group): A group containing datasets.
+
+ Returns:
+    data (numpy.ndarray): A 2D numpy array containing the extracted data.
+                          Each row corresponds to the data from a dataset 
+                          in the group.
+
+ Example:
+    with h5py.File("data.h5", "r") as file:
+        group = file["group_name"]
+        data = prep2D(group)
+
+ Notes:
+    - This function takes a group object (h5py.Group) as input.
+    - It extracts the data from all datasets within the group and combines  
+      them into a 2D array.
+    - The datasets are visited recursively using the `visititems` method 
+      of the group.
+    - The data from each dataset is converted into a numpy array and appended 
+      to a list.
+    - Finally, the list of arrays is converted into a 2D numpy array and returned.
+==================================================================================
+"""
 def prep2D(group):
     subgroups_data = []
 
@@ -646,6 +933,7 @@ def prep2D(group):
 
     group.visititems(get_data)
     return np.array(subgroups_data) 
+
 """
 =====================================================================================
  Documentation for the main() section of the code:
@@ -932,7 +1220,8 @@ def main():
     sigS = np.zeros((3, 12, 421, 421))
     for i in range(3):
         for j in range(12):
-            sigS[i][j] = interpSigS(i, PWRmix["isoName"][j], Zry['temp'], PWRmix['sig0'][j, :])
+            #sigS[i][j] = interpSigS(i, PWRmix["isoName"][j], Zry['temp'], PWRmix['sig0'][j, :])
+            sigS[i][j] = boosted_interpSigS(i, PWRmix["isoName"][j], Zry['temp'], PWRmix['sig0'][j, :])
 
     print('Done.\n')
 
