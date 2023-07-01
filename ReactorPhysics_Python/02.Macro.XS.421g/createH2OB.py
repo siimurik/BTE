@@ -483,7 +483,7 @@ def writeMacroXS(s_struct, matName):
             f'Water temperature:    {s_struct["temp"]:.1f} K',
             f'Water pressure:       {s_struct["p"]:.1f} MPa',
             f'Water density:        {s_struct["den"]:.5f} g/cm3',
-            f'U-235 concentration:  {s_struct["bConc"]*1e6:.1f} ppm'
+            f'Boron concentration:  {s_struct["bConc"]*1e6:.1f} ppm'
         ]
 
         # Write the header as attributes of the root group
@@ -670,7 +670,7 @@ def main():
         sigL_data = np.array(eval(f'hdf5_{H2OB["isoName"][i]}').get('sigL_G').get('sigL'))
         sigLtab[i, :size, col_start:col_start+421] = sigL_data.reshape(size, 421)
 
-    sigC, sigL = np.zeros((4, H2OB['ng'])), np.zeros((4, H2OB['ng']))
+    sigC, sigL = np.zeros((len(aDen), H2OB['ng'])), np.zeros((len(aDen), H2OB['ng']))
 
     for ig in range(H2OB['ng']):
         # Number of isotopes in the mixture
