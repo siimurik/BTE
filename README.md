@@ -22,7 +22,7 @@ Files for the master thesis on the topic named:
   - input_and_initialize_PWR_like()
   - matpro()
   - NOTE: Data that these functions create are stored in the same folder, functions are part of the larger code named **createPWR_mix.py**
-* **createPWR_like_mix.m** converted to file **createPWR_mix.py**.
+* **createPWR_like_mix.m** converted to file **createPWR_mix.py**. NB!!! SigT values currently incorrect!!!
 * Significantly optimized the **convertCSV2H5.py** code. Improved version is named **boostedCSV2H5.py** and uses the [Numba](https://numba.readthedocs.io/en/stable/) just-in-time compiler. 
 ---
 * **createH2OB.m** - [Converted successfully]
