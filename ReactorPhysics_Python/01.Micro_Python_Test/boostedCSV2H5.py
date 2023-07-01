@@ -118,16 +118,17 @@ def extract_mf6(mt, ntt, m):
     return ifrom, ito, sigFinal
 
 def main():
-    csv_files = [file for file in os.listdir('.') if file.endswith('.CSV')] # get a list of all CSV files in the current directory
-    for csv_file in csv_files: # loop over all CSV files
-        nameOnly = os.path.splitext(csv_file)[0] # find the name of the file without extension
+    csv_directory = "CSV_files" # Specify the directory containing the CSV files
+    csv_files = [file for file in os.listdir(csv_directory) if file.endswith('.CSV')] # Get a list of all CSV files in the csv_directory
+
+    for csv_file in csv_files: # Loop over all CSV files
+        csv_path = os.path.join(csv_directory, csv_file) # Get the full path of the CSV file
+        nameOnly = os.path.splitext(csv_file)[0] # Find the name of the file without extension
         print(f"Import data from {nameOnly}.CSV. ", end="")
-        m = np.genfromtxt(csv_file, delimiter=';') # load CSV file into matrix m
+        m = np.genfromtxt(csv_path, delimiter=';') # Load CSV file into matrix m
         print("Done.")
         nRow = m.shape[0] # number of rows
 
-        # Find number of temperatures and values of temperatures using mf=1 and mt=451
-        #temp = np.empty(4, dtype=np.float64) # index of group 'to'
         nTemp = 0 # number of temperatures
         temp = [] # vector of temperatures
 
@@ -143,9 +144,10 @@ def main():
             else:
                 isoName = f"micro_{nameOnly}_{round(temp[iTemp])}K" # name of the file with a temperature index
 
-            if not os.path.exists(isoName + '.h5'): # if the corresponding HDF5 file does not exist
-                print(f"Check if the HDF5 files for all temperatures are already available.")
-                with h5py.File(isoName + '.h5', 'w') as hdf:
+            h5_file_path = isoName + '.h5' # HDF5 file name (no need to specify the directory as it will be created in the same directory as the Python script)
+            if not os.path.exists(h5_file_path): # If the corresponding HDF5 file does not exist
+                print(f"Check if the HDF5 file for {isoName} is already available.")
+                with h5py.File(h5_file_path, 'w') as hdf:
                     # Add important parameters for which the microscopic cross sections were generated
                     hdf.attrs['description'] = 'Python-based Neutron Transport Simulation'
 
