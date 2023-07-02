@@ -1111,12 +1111,13 @@ def main():
                 prep2D(hdf5_O16 .get('sigT_G')), prep2D(hdf5_B10 .get('sigT_G')), prep2D(hdf5_B11 .get('sigT_G'))
             )
 
+    #PWRmix["isoName"] = [UO2_03["isoName"] + Zry["isoName"] + H2OB["isoName"]]
     PWRmix["isoName"] = ['U235', 'U238', 'O16', 'ZR90', 'ZR91', 'ZR92', 'ZR94', 'ZR96', 'H01', 'O16', 'B10', 'B11']
     sig0_sizes = []
-    for i in range(12):
+    for i in range(len(PWRmix["isoName"])):
         sig0_sizes.append(len(np.array(eval(f'hdf5_{PWRmix["isoName"][i]}').get('sig0_G').get('sig0'))))
         #print(len(np.array(eval(f'hdf5_{isotope[i]}').get('sig0_G').get('sig0'))))
-    sig0tab = np.zeros((12, max(sig0_sizes)))
+    sig0tab = np.zeros((len(PWRmix["isoName"]), max(sig0_sizes)))
     for i, size in enumerate(sig0_sizes):
         #print("i =", i, "size =", size)
         sig0tab[i, :size] = np.array(eval(f'hdf5_{PWRmix["isoName"][i]}').get('sig0_G').get('sig0'))
@@ -1132,7 +1133,7 @@ def main():
     print('Sigma-zero iterations. ')
     PWRmix['sig0'] = sigmaZeros(sigTtab, sig0tab, aDen, SigEscape)
     #print(PWRmix['sig0'])
-    print('Done.\n')
+    print('Done.')
 
     print('Interpolation of microscopic cross sections for the found sigma-zeros. ')
     sigCtab = prepareIntoND(
@@ -1143,24 +1144,24 @@ def main():
             )
     #-------------------------------------------------------------------------------------------
     sigL_sizes = []
-    for i in range(12):
+    for i in range(len(PWRmix["isoName"])):
         sigL_data = np.array(eval(f'hdf5_{PWRmix["isoName"][i]}').get('sigL_G').get('sigL'))
         sigL_sizes.append(len(sigL_data))
 
     maxL_size = max(sigL_sizes)
-    sigLtab = np.zeros((12, maxL_size, 421))
+    sigLtab = np.zeros((len(PWRmix["isoName"]), maxL_size, 421))
     col_start = 0
     for i, size in enumerate(sigL_sizes):
         sigL_data = np.array(eval(f'hdf5_{PWRmix["isoName"][i]}').get('sigL_G').get('sigL'))
         sigLtab[i, :size, col_start:col_start+421] = sigL_data.reshape(size, 421)
     #-------------------------------------------------------------------------------------------
     sigF_sizes = []
-    for i in range(12):
+    for i in range(len(PWRmix["isoName"])):
         sigF_data = prep2D(eval(f'hdf5_{PWRmix["isoName"][i]}').get('sigF_G'))
         sigF_sizes.append(len(sigF_data))
 
     maxF_size = max(sigF_sizes)
-    sigFtab = np.zeros((12, maxF_size, 421))
+    sigFtab = np.zeros((len(PWRmix["isoName"]), maxF_size, 421))
     col_start = 0
     for i, size in enumerate(sigF_sizes):
         sigF_data = prep2D(eval(f'hdf5_{PWRmix["isoName"][i]}').get('sigF_G'))
@@ -1168,20 +1169,20 @@ def main():
         sigFtab[i, :size, col_start:col_start+reshaped_data.shape[2]] = reshaped_data[:, :, :421]
     #-------------------------------------------------------------------------------------------
     sig2_sizes = []
-    for i in range(12):
+    for i in range(len(PWRmix["isoName"])):
         sig2_data = np.array(eval(f'hdf5_{PWRmix["isoName"][i]}').get('sig2_G').get('sig2'))
         sig2_sizes.append(len(sig2_data))
 
     max2_size = max(sig2_sizes)
-    sig2 = np.zeros((12, max2_size, 421))
+    sig2 = np.zeros((len(PWRmix["isoName"]), max2_size, 421))
     col_start = 0
     for i in range(len(sig2_sizes)):
         sig2_data = np.array(eval(f'hdf5_{PWRmix["isoName"][i]}').get('sig2_G').get('sig2'))
         reshaped_data = sig2_data.reshape(1, sig2_data.shape[0], sig2_data.shape[1])  # Reshape to (1, M, N)
         sig2[i, :sig2_data.shape[0], col_start:col_start+sig2_data.shape[1]] = reshaped_data[:, :max2_size, :421]
-
+    #-------------------------------------------------------------------------------------------
     # Initialize sigC, sigL, sigF 
-    sigC, sigL, sigF = np.zeros((12, PWRmix['ng'])), np.zeros((12, PWRmix['ng'])), np.zeros((12, PWRmix['ng']))
+    sigC, sigL, sigF = np.zeros((len(PWRmix["isoName"]), PWRmix['ng'])), np.zeros((len(PWRmix["isoName"]), PWRmix['ng'])), np.zeros((len(PWRmix["isoName"]), PWRmix['ng']))
 
     for ig in range(PWRmix['ng']):
         # Number of isotopes in the mixture
@@ -1219,18 +1220,18 @@ def main():
 
     sigS = np.zeros((3, 12, 421, 421))
     for i in range(3):
-        for j in range(12):
-            #sigS[i][j] = interpSigS(i, PWRmix["isoName"][j], Zry['temp'], PWRmix['sig0'][j, :])
-            sigS[i][j] = boosted_interpSigS(i, PWRmix["isoName"][j], Zry['temp'], PWRmix['sig0'][j, :])
+        for j in range(len(PWRmix["isoName"])):
+            sigS[i][j] = interpSigS(i, PWRmix["isoName"][j], Zry['temp'], PWRmix['sig0'][j, :])
+            #sigS[i][j] = boosted_interpSigS(i, PWRmix["isoName"][j], Zry['temp'], PWRmix['sig0'][j, :])
 
-    print('Done.\n')
+    print('Done.')
 
     # Macroscopic cross section [1/cm] is microscopic cross section for the 
     # "average" molecule [barn] times the number density [number of
     # molecules/(barn*cm)]
-    PWRmix['SigC'] = sigC.T @ aDen
-    PWRmix['SigL'] = sigL.T @ aDen
-    PWRmix['SigF'] = sigF.T @ aDen
+    PWRmix['SigC'] = np.transpose(sigC) @ aDen
+    PWRmix['SigL'] = np.transpose(sigL) @ aDen
+    PWRmix['SigF'] = np.transpose(sigF) @ aDen
     PWRmix['SigP'] = prep2D(hdf5_U235.get('nubar_G')) * sigF[0, :] * aDen[0] + prep2D(hdf5_U238.get('nubar_G'))  * sigF[1, :] * aDen[1]
 
     #PWRmix['SigS'] = [None] * 3
@@ -1248,7 +1249,7 @@ def main():
                         sig2[8] * aDen[8] + sig2[9] * aDen[9] + sig2[10] * aDen[10] + sig2[11] * aDen[11]   )
 
     PWRmix['SigT'] = (PWRmix['SigC'] + PWRmix['SigL'] + PWRmix['SigF'] +
-                    np.sum(PWRmix_SigS[0], axis=1) + np.sum(PWRmix['Sig2'], axis=1))
+                    np.sum(PWRmix_SigS[0], axis=0) + np.sum(PWRmix['Sig2'], axis=0))
 
     # Add SigS matrices to dictionary
     PWRmix['SigS'] = {}
@@ -1276,6 +1277,8 @@ def main():
     PWRmix["aw"]   = 0
     PWRmix["den"]  = 0
     PWRmix["temp"] = 0
+
+    PWRmix["numDen"] = aDen
 
     # Finally, create the file with macroscopic cross sections
     writeMacroXS(PWRmix, matName)

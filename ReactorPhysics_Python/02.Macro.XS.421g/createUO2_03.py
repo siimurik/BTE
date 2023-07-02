@@ -647,8 +647,10 @@ def writeMacroXS(s_struct, matName):
             'Author: Siim Erik Pugal',
             '',
             'Macroscopic cross sections for water solution of boric acid',
-            f'Zry temperature:    {s_struct["temp"]:.1f} K',
-            f'Zry density:        {s_struct["den"]:.5f} g/cm3',
+            f'UO2 temperature:    {s_struct["temp"]:.1f} K',
+            f'UO2 porosity:       {s_struct["por"]:.1f}',
+            f'UO2 density:        {s_struct["den"]:.3f} g/cm3',
+            f'Enrichment by U235: {s_struct["molEnrich"]:.1f} mol'
         ]
 
         # Write the header as attributes of the root group
@@ -668,8 +670,8 @@ def writeMacroXS(s_struct, matName):
                     group.create_dataset(subkey, data=subdata)
     
         # Rest of the code remains unchanged
-        s_SigS = np.zeros((3, 421, 421))
-        for i in range(3):
+        s_SigS = np.zeros((2, 421, 421))
+        for i in range(2):
             s_SigS[i] = s_struct['SigS'][f'SigS[{i}]']
 
         SigS_G = f.create_group("sigS_G")
@@ -708,6 +710,10 @@ def writeMacroXS(s_struct, matName):
             del f["p"]
         if "Uconc" in f:
             del f["Uconc"]
+        if "por" in f:
+            del f["por"]
+        if "molEnrich" in f:
+            del f["molEnrich"]
 
         f.create_dataset('fissile', data=1)
         if np.all(s_struct['SigP'][0] == 0):
@@ -731,10 +737,10 @@ def writeMacroXS(s_struct, matName):
 ---------------------------------------------------------------------------
  Author: Siim Erik Pugal, 2023
 
- The function reads the MICROsopic group cross sections in the Matlab
+ The function reads the MICROscopic group cross sections in the Matlab
  format and calculates from them the MACROscopic cross sections for
- natural mixture of zirconium isotopes which is the basis of zircalloy --
- fuel cladding material of the pressurized water reactor.
+ dioxide uranium which is the fuel material of the pressurized water 
+ reactor.
 =========================================================================s
 """
 def main():
@@ -749,198 +755,208 @@ def main():
     g = readPWR_like("g")
 
     # number of energy groups
-    Zry = {}
-    Zry["ng"] = 421
-
-    # Zircaloy is composed of pure Zirconium (~1% of tin neglected). There are
-    # four stable isotopes of zirconium: Zr090, Zr091, Zr092, Zr094 and one
-    # very long-lived: Zr096 with the following molar fractions:
-    molFrZr = np.array([0.5145, 0.1122, 0.1715, 0.1738, 0.0280])
+    UO2_03 = {}
+    UO2_03["ng"] = 421
 
     # Path to microscopic cross section data:
-    micro_XS_path = '../01.Micro_Python'                                # INPUT
+    micro_XS_path = '../01.Micro_Python'  
 
-    # Call the functions for Zr isotopes and store the data in the structures.
-    # As an example it is done below for 600K, change when other temperatures needed:
-    hdf5_ZR90 = h5py.File(micro_XS_path + '/micro_ZR090__600K.h5', 'r')  # INPUT
-    print(f"File 'micro_ZR090__600K.h5' has been read in.")
-    hdf5_ZR91 = h5py.File(micro_XS_path + '/micro_ZR091__600K.h5', 'r')  # INPUT
-    print(f"File 'micro_ZR091__600K.h5' has been read in.")
-    hdf5_ZR92 = h5py.File(micro_XS_path + '/micro_ZR092__600K.h5', 'r')  # INPUT
-    print(f"File 'micro_ZR092__600K.h5' has been read in.")
-    hdf5_ZR94 = h5py.File(micro_XS_path + '/micro_ZR094__600K.h5', 'r')  # INPUT
-    print(f"File 'micro_ZR094__600K.h5' has been read in.")
-    hdf5_ZR96 = h5py.File(micro_XS_path + '/micro_ZR096__600K.h5', 'r')  # INPUT
-    print(f"File 'micro_ZR096__600K.h5' has been read in.")
+    # Call the functions for UO2 isotopes and store the data in the structures.
+    # As an example it is done below for temperature of 900 K.
+    # Change when other parameters needed.
+    hdf5_U235 = h5py.File(micro_XS_path + '/micro_U_235__900K.h5', 'r') # INPUT
+    print(f"File 'micro_U_235__900K.h5' has been read in.")
+    hdf5_U238 = h5py.File(micro_XS_path + '/micro_U_238__900K.h5', 'r') # INPUT
+    print(f"File 'micro_U_238__900K.h5' has been read in.")
+    hdf5_O16  = h5py.File(micro_XS_path + '/micro_O_016__900K.h5', 'r') # INPUT
+    print(f"File 'micro_O_016__900K.h5' has been read in.")
 
-    Zry["temp"] = 600                                                       # INPUT
-    Zry["eg"] = np.array(hdf5_ZR90.get('en_G').get('eg'))
-    Zry['ng'] = 421
+    UO2_03["temp"] = 900                                                # INPUT
+    UO2_03["eg"] = np.array(hdf5_U235.get('en_G').get('eg'))
+    UO2_03['ng'] = 421
 
-    # Mass of one "average" Zr atom in atomic unit mass [a.u.m.]
-    Zry["aw"] = hdf5_ZR90.attrs.get('aw')*molFrZr[0] + \
-                hdf5_ZR91.attrs.get('aw')*molFrZr[1] + \
-                hdf5_ZR92.attrs.get('aw')*molFrZr[2] + \
-                hdf5_ZR94.attrs.get('aw')*molFrZr[3] + \
-                hdf5_ZR96.attrs.get('aw')*molFrZr[4]
+    # UO2 ceramic fuel is manufactured with the density lower than the
+    # theoretical density. The deviation is characterized with porosity which
+    # is the volume of voids over the total volume of the material. 0.05 (95%
+    # of theoretical density) is a typical value for UO2_03.
+    por = 0.05                                                          # INPUT
 
-    # The function matpro() sets up the data for some material properties 
-    # of uranium dioxide, inert gases and zircaloy
+    # Uranium is composed of two uranium isotopes: U235 and U238, the mass
+    # fraction of the U235 isotopes is called enrichment. We will used molar
+    # enrichment for simplicity (this is input data to be changed when needed):
+    molEnrich = 0.03                                                    # INPUT
+
+    # The molar fractions of U235 and U238 are as follows:
+    molFrU = np.array([molEnrich, 1 - molEnrich])
+
+    # Mass of one "average" UO2 molecule in atomic unit mass [a.u.m.]
+    UO2_03["aw"] = hdf5_U235.attrs.get('aw')*molFrU[0] + \
+                   hdf5_U238.attrs.get('aw')*molFrU[1] + \
+                   hdf5_O16 .attrs.get('aw')*2.0
+
+    # Path to material properties
     file_path_matpro = os.path.join(lib_path, 'matprop_UO2_zircaloy.h5')
     if not os.path.exists(file_path_matpro):
         matpro()
-    # read_matpro() returns the material properties of Zry in structure "clad"
-    clad = read_matpro("clad")
+    # read_matpro() returns the material properties of UO2 in structure "fuel"
+    fuel = read_matpro("fuel")
 
-    # Zircaloy density
-    Zry["den"] = clad["rho"]*1e-3   # [g/cm3]
-    rho = Zry["den"]*1.0e-24        # [g/(barn*cm)]
-    rho = rho / 1.660538e-24        # [(a.u.m.)/(barn*cm)]
-    rho = rho / Zry["aw"]           # [number of Zr atoms/(barn*cm)]
+    # The UO2 fuel density is theoretical density times 1 - porosity
+    UO2_03["den"] = fuel["rho"] * 1e-3 * (1 - por)  # [g/cm3]
+    rho = UO2_03["den"]*1.0e-24                     # [g/(barn*cm)]
+    rho = rho / 1.660538e-24                        # [(a.u.m.)/(barn*cm)]
+    rho = rho / UO2_03["aw"]                        # [number of UO2 molecules/(barn*cm)]
 
-    # The names of isotopes
-    Zry["isoName"] = ['ZR90', 'ZR91', 'ZR92', 'ZR94', 'ZR96']
+    # The names of fissionable isotopes and oxygen
+    UO2_03["isoName"] = ['U235', 'U238', 'O16']
 
-    # The number densities of isotopes
-    Zry["numDen"] = np.array([molFrZr[0] * rho, molFrZr[1] * rho, molFrZr[2] * rho, 
-                            molFrZr[3] * rho, molFrZr[4] * rho])
+    # The number densities of fissionable isotopes and oxygen
+    UO2_03["numDen"] = np.array([molFrU[0] * rho, molFrU[1] * rho, 2 * rho])
 
-    # Prepare for sigma-zero iterations:
+    # Prepare for sigma-zero iterations
     sigTtab = prepareIntoND(
-                prep2D(hdf5_ZR90.get('sigT_G')), 
-                prep2D(hdf5_ZR91.get('sigT_G')), 
-                prep2D(hdf5_ZR92.get('sigT_G')), 
-                prep2D(hdf5_ZR94.get('sigT_G')), 
-                prep2D(hdf5_ZR96.get('sigT_G'))
+                prep2D(hdf5_U235.get('sigT_G')), 
+                prep2D(hdf5_U238.get('sigT_G')), 
+                prep2D(hdf5_O16 .get('sigT_G'))
             )
 
     sig0_sizes = []
-    for i in range(len(Zry["isoName"])):
-        sig0_sizes.append(len(np.array(eval(f'hdf5_{Zry["isoName"][i]}').get('sig0_G').get('sig0'))))
+    for i in range(len(UO2_03["isoName"])):
+        sig0_sizes.append(len(np.array(eval(f'hdf5_{UO2_03["isoName"][i]}').get('sig0_G').get('sig0'))))
 
-    sig0tab = np.zeros((len(Zry["isoName"]), max(sig0_sizes)))
+    sig0tab = np.zeros((len(UO2_03["isoName"]), max(sig0_sizes)))
     for i, size in enumerate(sig0_sizes):
         #print("i =", i, "size =", size)
-        sig0tab[i, :size] = np.array(eval(f'hdf5_{Zry["isoName"][i]}').get('sig0_G').get('sig0'))
+        sig0tab[i, :size] = np.array(eval(f'hdf5_{UO2_03["isoName"][i]}').get('sig0_G').get('sig0'))
 
-    aDen = Zry['numDen']
+    aDen = UO2_03["numDen"]
 
     # SigEscape -- escape cross section, for simple convex objects (such as
     # plates, spheres, or cylinders) is given by S/(4V), where V and S are the
     # volume and surface area of the object, respectively
-    SigEscape = 1 / (2 * g["clad"]["rOut"] * 100)
+    SigEscape = 1 / (2 * g["fuel"]["rOut"] * 100)
 
-    print('Sigma-zero iterations.')
-    Zry["sig0"] = sigmaZeros(sigTtab, sig0tab, aDen, SigEscape)
+    print('Sigma-zero iterations. ')
+    UO2_03["sig0"] = sigmaZeros(sigTtab, sig0tab, aDen, SigEscape)
     print('Done.')
 
-    print('Interpolation of microscopic cross sections for the found sigma-zeros. ')
-    sigCtab = prepareIntoND(
-            prep2D(hdf5_ZR90.get('sigC_G')), 
-            prep2D(hdf5_ZR91.get('sigC_G')), 
-            prep2D(hdf5_ZR92.get('sigC_G')), 
-            prep2D(hdf5_ZR94.get('sigC_G')),
-            prep2D(hdf5_ZR96.get('sigC_G'))
-            )
-#-------------------------------------------------------------------------------------------
-    sigL_sizes = []
-    for i in range(len(Zry["isoName"])):
-        sigL_data = np.array(eval(f'hdf5_{Zry["isoName"][i]}').get('sigL_G').get('sigL'))
-        sigL_sizes.append(len(sigL_data))
+    print("Interpolation of microscopic cross sections for the found sigma-zeros.")
+    sigC_U235 = prep2D(hdf5_U235.get('sigC_G'))
+    sigC_U238 = prep2D(hdf5_U238.get('sigC_G'))
+    sigC_O16  = prep2D(hdf5_O16 .get('sigC_G'))
 
-    maxL_size = max(sigL_sizes)
-    sigLtab = np.zeros((len(Zry["isoName"]), maxL_size, Zry["ng"]))
-    col_start = 0
-    for i, size in enumerate(sigL_sizes):
-        sigL_data = np.array(eval(f'hdf5_{Zry["isoName"][i]}').get('sigL_G').get('sigL'))
-        sigLtab[i, :size, col_start:col_start+421] = sigL_data.reshape(size, 421)
-#-------------------------------------------------------------------------------------------
+    sigL_U235 = np.array(hdf5_U235.get('sigL_G').get('sigL'))
+    sigL_U238 = np.array(hdf5_U238.get('sigL_G').get('sigL'))
+    sigL_O16  = np.array(hdf5_O16 .get('sigL_G').get('sigL'))
 
-    sigC, sigL = np.zeros((len(aDen), Zry['ng'])), np.zeros((len(aDen), Zry['ng']))
+    sigF_U235 = prep2D(hdf5_U235.get('sigF_G'))
+    sigF_U238 = prep2D(hdf5_U238.get('sigF_G'))
+    sigF_O16  = prep2D(hdf5_O16 .get('sigF_G'))
 
-    for ig in range(Zry['ng']):
+    sigCtab = prepareIntoND(sigC_U235, sigC_U238, sigC_O16)
+    sigLtab = prepareIntoND(sigL_U235, sigL_U238, sigL_O16)
+    sigFtab = prepareIntoND(sigF_U235, sigF_U238, sigF_O16[0])  # Don't even ask me why the last one is so retarded
+                                                                # sigF_O16.shape = (1, 6, 421)
+
+    # Initialize sigC, sigL, sigF 
+    sigC, sigL, sigF = np.zeros((len(aDen), UO2_03['ng'])), np.zeros((len(aDen), UO2_03['ng'])), np.zeros((len(aDen), UO2_03['ng']))
+
+    for ig in range(UO2_03['ng']):
         # Number of isotopes in the mixture
         nIso = len(aDen)
+        
         # Loop over isotopes
         for iIso in range(nIso):
             # Find cross sections for the found sigma-zeros
             if len(sig0tab[iIso]) == 1:
                 sigC[iIso, ig] = sigCtab[iIso][0, ig]
                 sigL[iIso, ig] = sigLtab[iIso][0, ig]
+                sigF[iIso, ig] = sigFtab[iIso][0, ig]
             else:
-                log10sig0 = min(10, max(0, np.log10(Zry['sig0'][iIso, ig])))
+                log10sig0 = min(10, max(0, np.log10(UO2_03['sig0'][iIso, ig])))
                 arrayLength = len(sig0tab[iIso][np.nonzero(sig0tab[iIso])])
                 x = np.log10(sig0tab[iIso][:arrayLength])
                 y_sigC = sigCtab[iIso][:arrayLength, ig]
                 y_sigL = sigLtab[iIso][:arrayLength, ig]
+                y_sigF = sigFtab[iIso][:arrayLength, ig]
 
                 temp_sigC = np.interp(log10sig0, x, y_sigC)
                 temp_sigL = np.interp(log10sig0, x, y_sigL)
-                if np.isnan(temp_sigC) or np.isnan(temp_sigL):
+                temp_sigF = np.interp(log10sig0, x, y_sigF)
+                
+                if np.isnan(temp_sigC) or np.isnan(temp_sigL) or np.isnan(temp_sigF):
                     # If any of the interpolated values is NaN, replace the entire row with non-zero elements
                     nonzero_indices = np.nonzero(sigCtab[iIso][:arrayLength, ig])
                     sigC[iIso, ig] = sigCtab[iIso][nonzero_indices[0][0], ig]
                     sigL[iIso, ig] = sigLtab[iIso][nonzero_indices[0][0], ig]
+                    sigF[iIso, ig] = sigFtab[iIso][nonzero_indices[0][0], ig]
                 else:
                     sigC[iIso, ig] = temp_sigC
                     sigL[iIso, ig] = temp_sigL
+                    sigF[iIso, ig] = temp_sigF
 
-    sigS = np.zeros((3, len(Zry["isoName"]), Zry["ng"], Zry["ng"]))
-    for i in range(3):
-        for j in range(len(Zry["isoName"])):
-            #sigS[i][j] = boosted_interpSigS(i, Zry["isoName"][j], Zry['temp'], Zry['sig0'][j, :])
-            sigS[i][j] = interpSigS(i, Zry["isoName"][j], Zry['temp'], Zry['sig0'][j, :])
+    sigS = np.zeros((2, len(UO2_03["isoName"]), UO2_03["ng"], UO2_03["ng"]))
+    for i in range(2):
+        for j in range(len(UO2_03["isoName"])):
+            #sigS[i][j] = boosted_interpSigS(i, UO2_03["isoName"][j], UO2_03['temp'], UO2_03['sig0'][j, :])
+            sigS[i][j] = interpSigS(i, UO2_03["isoName"][j], UO2_03['temp'], UO2_03['sig0'][j, :])
             
     print('Done.')
 
-    #  Macroscopic cross section [1/cm] is microscopic cross section for the 
-    # "average" atom [barn] times the number density [number of atoms/(barn*cm)]
-    Zry['SigC'] = np.transpose(sigC) @ aDen
-    Zry['SigL'] = np.transpose(sigL) @ aDen
+    # Macroscopic cross section [1/cm] is microscopic cross section for the 
+    # "average" molecule [barn] times the number density [number of
+    # molecules/(barn*cm)]
+    UO2_03['SigC'] = np.transpose(sigC) @ aDen
+    UO2_03['SigL'] = np.transpose(sigL) @ aDen
+    UO2_03['SigF'] = np.transpose(sigF) @ aDen
+    UO2_03['SigP'] = prep2D(hdf5_U235.get('nubar_G')) * sigF[0, :] * aDen[0] + \
+                    prep2D(hdf5_U238.get('nubar_G')) * sigF[1, :] * aDen[1]
 
-    Zry_SigS = np.zeros((3, Zry['ng'], Zry['ng']))
-    for j in range(3):
-        Zry_SigS[j] =  np.transpose(
-                        sigS[j][0] * aDen[0] + sigS[j][1] * aDen[1] + sigS[j][2] * aDen[2] + \
-                        sigS[j][3] * aDen[3] + sigS[j][4] * aDen[4])
+    #UO2_03['SigS'] = [None] * 3
+    UO2_03_SigS = np.zeros((2, UO2_03['ng'], UO2_03['ng']))
+    for j in range(2):
+        UO2_03_SigS[j] = np.transpose(  
+                            sigS[j, 0] * aDen[0] + 
+                            sigS[j, 1] * aDen[1] + 
+                            sigS[j, 2] * aDen[2]    )
 
-    Zry['Sig2'] =  np.transpose(
-                    hdf5_ZR90.get('sig2_G').get('sig2') * aDen[0] + \
-                    hdf5_ZR91.get('sig2_G').get('sig2') * aDen[1] + \
-                    hdf5_ZR92.get('sig2_G').get('sig2') * aDen[2] + \
-                    hdf5_ZR94.get('sig2_G').get('sig2') * aDen[3] + \
-                    hdf5_ZR96.get('sig2_G').get('sig2') * aDen[4] )
+    UO2_03["Sig2"] = np.transpose(
+                        hdf5_U235.get('sig2_G').get('sig2') * aDen[0] + 
+                        hdf5_U238.get('sig2_G').get('sig2') * aDen[1] + 
+                        hdf5_O16 .get('sig2_G').get('sig2') * aDen[2]   )
 
-    Zry['SigT'] = Zry['SigC'] + Zry['SigL'] + np.sum(Zry_SigS[0], axis=0) + np.sum(Zry['Sig2'], axis=0)
+    UO2_03["SigT"] = UO2_03["SigC"] + UO2_03["SigL"] + UO2_03["SigF"] +     \
+                np.sum(UO2_03_SigS[0], axis=0) + np.sum(UO2_03["Sig2"], axis=0)
 
     # Add SigS matrices to dictionary
-    Zry['SigS'] = {}
-    for i in range(3):
-        Zry['SigS'][f'SigS[{i}]'] = Zry_SigS[i]
+    UO2_03['SigS'] = {}
+    for i in range(2):
+        UO2_03['SigS'][f'SigS[{i}]'] = UO2_03_SigS[i]
 
-    # Number of fissile isotopes
-    Zry["nFis"] = 0
-
-    Zry['SigP'] = np.array([0.0])
+    # For simplicity, fission spectrum of the mixture assumed equal to 
+    # fission spectrum of U235
+    UO2_03['chi'] = np.array(hdf5_U235.get('chi_G').get('chi'))
 
     # Make a file name which includes the isotope name and the temperature
-    if Zry['temp'] < 1000:
-        matName = f"macro421_Zry__{round(Zry['temp'])}K"  # name of the file with a temperature index
+    if UO2_03['temp'] < 1000:
+        matName = f"macro421_UO2_03__{round(UO2_03['temp'])}K"  # name of the file with a temperature index
     else:
-        matName = f"macro421_Zry_{round(Zry['temp'])}K"  # name of the file with a temperature index
+        matName = f"macro421_UO2_03_{round(UO2_03['temp'])}K"  # name of the file with a temperature index
 
     # Change the units of number density from 1/(barn*cm) to 1/cm2
-    Zry['numDen'] = Zry['numDen']*1e24
+    UO2_03['numDen'] = UO2_03['numDen']*1e24
+
+    UO2_03["por"] = por*100
+    UO2_03["molEnrich"] = molEnrich*100
 
     # Finally create the file with macroscopic cross sections
-    writeMacroXS(Zry, matName)
+    writeMacroXS(UO2_03, matName)
 
-    # Close HDF5 files
-    hdf5_ZR90.close()
-    hdf5_ZR91.close()
-    hdf5_ZR92.close()
-    hdf5_ZR94.close()
-    hdf5_ZR96.close()
+    # Close the HDF5 files
+    hdf5_U235.close()
+    hdf5_U238.close()
+    hdf5_O16.close()
+
 
 if __name__ == '__main__':
     main()

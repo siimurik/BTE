@@ -724,7 +724,7 @@ def main():
                     hdf5_B10.get('sig2_G').get('sig2') * aDen[2] + \
                     hdf5_B11.get('sig2_G').get('sig2') * aDen[3] )
 
-    H2OB['SigT'] = H2OB['SigC'] + H2OB['SigL'] + np.sum(H2OB_SigS[0], axis=1) + np.sum(H2OB['Sig2'], axis=1)
+    H2OB['SigT'] = H2OB['SigC'] + H2OB['SigL'] + np.sum(H2OB_SigS[0], axis=0) + np.sum(H2OB['Sig2'], axis=0)
 
     # Add SigS matrices to dictionary
     H2OB['SigS'] = {}
