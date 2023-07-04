@@ -62,12 +62,12 @@ def convertGXStoCSV():
             print("Done")
 
     # Move the GXS files to a backup folder
-    backup_directory = "GXS_files_backup"
-    if not os.path.exists(backup_directory):
-        os.makedirs(backup_directory)
-
-    for gxs_file in gxs_files:
-        shutil.move(os.path.join("GXS_files", gxs_file), os.path.join(backup_directory, gxs_file))
+    #backup_directory = "GXS_files_backup"
+    #if not os.path.exists(backup_directory):
+    #    os.makedirs(backup_directory)
+#
+    #for gxs_file in gxs_files:
+    #    shutil.move(os.path.join("GXS_files", gxs_file), os.path.join(backup_directory, gxs_file))
 
 if __name__ == "__main__":
     convertGXStoCSV()
