@@ -2,6 +2,21 @@
 Files for the master thesis on the topic named:
 ## Development of a simplified Monte Carlo Neutron Transport routine in Python
 
+List of all the Python packages used:
+* re
+* os
+* time
+* h5py
+* tqdm
+* numpy
+* numba
+* scipy
+* requests
+* zipfile
+* pyXSteam
+* cython
+* matplotlib
+
 ---
 ### Step 1. Download nuclear data from IAEA site.
 
