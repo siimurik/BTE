@@ -2,17 +2,39 @@ import h5py
 import time as t
 import numpy as np
 import matplotlib.pyplot as plt
-# Custom
-#import sample_direction
-#import move_neutron
-#import russian_roulette
-#import split_neutrons
-#import calculate_keff_cycle
-#import update_indices
-#import perform_collision
+import montepy as mp    # A custom module written with Cython
 
-import montepy as mp
+"""
+===========================================================================
+ hdf2dict() function documentation
+---------------------------------------------------------------------------
+ Essentially a modified version of the 'read_matpro()' function that 
+ converts all the data inside a HDF5 file from a HDF5 dict into a Python
+ dict.
+---------------------------------------------------------------------------
+ Parameters:
+        file_name (str): The name or path of the HDF5 file to be processed.
 
+ Returns:
+    data (dict): A nested dictionary containing the datasets from the HDF5 
+                file. The keys of the top-level dictionary correspond to 
+                dataset names, and the values can be either nested 
+                dictionaries (for struct datasets) or numpy arrays 
+                (for regular datasets).
+
+ Example:
+    data = hdf2dict("data.h5")
+---------------------------------------------------------------------------
+    Notes:
+        - This function takes an HDF5 file name or path as input.
+        - It reads datasets from the file and organizes them into a nested 
+            dictionary structure.
+        - Each dataset is represented by a key-value pair in the dictionary.
+        - If a dataset is a struct (group in HDF5), it is further nested 
+            within the dictionary.
+        - Regular datasets are stored as numpy arrays.
+===========================================================================
+"""
 def hdf2dict(file_name):
     # Define the dictionary to store the datasets
     data = {}
@@ -40,87 +62,23 @@ def hdf2dict(file_name):
                 # Store the dataset array in the dictionary
                 data[dataset_name] = dataset_array
 
-
     return data
+
 """
-#@nb.njit
-def sample_direction():
-    teta = np.pi * np.random.rand()
-    phi = 2.0 * np.pi * np.random.rand()
-    dirX = np.sin(teta) * np.cos(phi)
-    dirY = np.sin(teta) * np.sin(phi)
-    return dirX, dirY
+===========================================================================
+ Documentation for the main() section of the code:
+---------------------------------------------------------------------------
+ Author: Siim Erik Pugal, 2023
 
-#@nb.njit
-def move_neutron(x, y, iNeutron, pitch, freePath, dirX, dirY):
-    x[iNeutron] += freePath * dirX
-    y[iNeutron] += freePath * dirY
-
-    # If outside the cell, find the corresponding point inside the cell
-    while x[iNeutron] < 0:
-        x[iNeutron] += pitch
-    while y[iNeutron] < 0:
-        y[iNeutron] += pitch
-    while x[iNeutron] > pitch:
-        x[iNeutron] -= pitch
-    while y[iNeutron] > pitch:
-        y[iNeutron] -= pitch
-
-    return x, y
-
-#@nb.njit
-def russian_roulette(weight, weight0):
-    numNeutrons = len(weight)
-    for iNeutron in range(numNeutrons):
-        terminateP = 1 - weight[iNeutron] / weight0[iNeutron]
-        if terminateP >= np.random.rand():
-            weight[iNeutron] = 0  # killed
-        elif terminateP > 0:
-            weight[iNeutron] = weight0[iNeutron]  # restore the weight
-    return weight
-
-#@nb.njit
-def split_neutrons(weight, numNeutrons, x, y, iGroup):
-    numNew = 0
-    for iNeutron in range(numNeutrons):
-        if weight[iNeutron] > 1:
-            N = int(weight[iNeutron])
-            if weight[iNeutron] - N > np.random.rand():
-                N += 1
-            weight[iNeutron] = weight[iNeutron] / N
-            for iNew in range(N - 1):
-                numNew += 1
-                x = np.append(x, x[iNeutron])
-                y = np.append(y, y[iNeutron])
-                weight = np.append(weight, weight[iNeutron])
-                iGroup = np.append(iGroup, iGroup[iNeutron])
-    numNeutrons += numNew
-    return weight, numNeutrons, x, y, iGroup
-
-
-def calculate_keff_cycle(iCycle, numCycles_inactive, numCycles_active, weight, weight0, numNeutrons, keff_active_cycle, keff_expected, sigma_keff):
-    # Calculate k-eff in a cycle
-    keff_cycle = np.sum(weight) / np.sum(weight0)
-
-    iActive = iCycle - numCycles_inactive
-    if iActive <= 0:
-        print('Inactive cycle = {:3d}/{:3d}; k-eff cycle = {:.5f}; numNeutrons = {:3d}'.format(
-            iCycle, numCycles_inactive, keff_cycle, numNeutrons))
-    else:
-        # Update k-effective of the cycle
-        keff_active_cycle[iActive-1] = keff_cycle
-
-        # Update k-effective of the problem
-        keff_expected[iActive-1] = np.mean(keff_active_cycle[:iActive])
-
-        # Calculate standard deviation of k-effective
-        sigma_keff[iActive-1] = np.sqrt(
-            np.sum((keff_active_cycle[:iActive] - keff_expected[iActive-1]) ** 2) / max(iActive - 1, 1) / iActive)
-
-        print('Active cycle = {:3d}/{:3d}; k-eff cycle = {:.5f}; numNeutrons = {:3d}; k-eff expected = {:.5f}; sigma = {:.5f}'.format(
-            iCycle - numCycles_inactive, numCycles_active, keff_cycle, numNeutrons, keff_expected[iActive-1], sigma_keff[iActive-1]))
+ The function calculates the neutron transport in a 2D (x,y) unit cell
+ similar to the unit cell of the pressurized water reactor using the Monte
+ Carlo method. 
+---------------------------------------------------------------------------
+ This version uses the Cython boosted custon Python module named 'montepy',
+ which is supposed to speed up the main for-loop resposible for the Monte
+ Carlo method.
+===========================================================================
 """
-
 def main():
     #def main():
     # Start the timer
@@ -128,16 +86,20 @@ def main():
 
     #--------------------------------------------------------------------------
     # Number of source neutrons
-    numNeutrons_born = 100      # INPUT
+    numNeutrons_born = 100          # INPUT
 
     # Number of inactive source cycles to skip before starting k-eff accumulation
-    numCycles_inactive = 100    # INPUT
+    numCycles_inactive = 100        # INPUT
 
     # Number of active source cycles for k-eff accumulation
-    numCycles_active = 2000     # INPUT
+    numCycles_active = 2000         # INPUT
 
     # Size of the square unit cell
-    pitch = 3.6  # cm           # INPUT
+    pitch = 3.6  # cm               # INPUT
+
+    # Define fuel and coolant regions
+    fuelLeft, fuelRight = 0.9, 2.7  # INPUT
+    coolLeft, coolRight = 0.7, 2.9  # INPUT
 
     #--------------------------------------------------------------------------
     # Path to macroscopic cross section data:
@@ -187,13 +149,13 @@ def main():
     sigma_keff = np.zeros(numCycles_active)
     keff_active_cycle = np.ones(numCycles_active)
     virtualCollision = False
-    #--------------------------------------------------------------------------
-    leftDim, rightDim = 0.7, 2.9
 
+    #--------------------------------------------------------------------------
     # Main (power) iteration loop
     mp.main_power_iteration_loop(   numNeutrons_born, numCycles_inactive, 
                                     numCycles_active, numNeutrons, 
-                                    pitch, leftDim, rightDim,
+                                    pitch,  fuelLeft,  fuelRight,
+                                    coolLeft,  coolRight,
                                     fuel, cool, clad,
                                     weight,
                                     SigTmax,
@@ -204,81 +166,6 @@ def main():
                                     sigma_keff,
                                     keff_active_cycle,
                                     virtualCollision )
-
-# Without Optimization
-#   real	3m56.100s
-#   user	3m55.538s
-#   sys	    0m1.239s
-
-
-# After Cython Optimization
-#   real	3m28.593s
-#   user	3m28.118s
-#   sys	    0m1.240s
-
-
-#    # Main (power) iteration loop
-#    for iCycle in range(1, numCycles_inactive + numCycles_active + 1):
-#
-#        # Normalize the weights of the neutrons to make the total weight equal to
-#        # numNeutrons_born (equivalent to division by keff_cycle)
-#        weight = (weight / np.sum(weight, axis=0, keepdims=True)) * numNeutrons_born
-#        weight0 = weight.copy()
-#        #----------------------------------------------------------------------
-#        # Loop over neutrons
-#        for iNeutron in range(numNeutrons):
-#
-#            absorbed = False
-#
-#            #------------------------------------------------------------------
-#            # Neutron random walk cycle: from emission to absorption
-#
-#            while not absorbed:
-#
-#                # Sample free path length according to the Woodcock method
-#                freePath = -np.log(np.random.rand()) / SigTmax[iGroup[iNeutron]]
-#                #print(freePath)
-#
-#                if not virtualCollision:
-#                    # Sample the direction of neutron flight assuming both
-#                    # fission and scattering are isotropic in the lab (a strong
-#                    # assumption!)
-#                    dirX, dirY = mp.sample_direction()
-#                    
-#                # Fly
-#                x, y = mp.move_neutron(x, y, iNeutron, pitch, freePath, dirX, dirY)
-#
-#                # Find the total and scattering cross sections                    
-#                SigA, SigS, SigP = mp.calculate_cross_sections(x, iNeutron, iGroup, fuel, cool, clad)
-#                
-#                # Sample the type of the collision: virtual (do nothing) or real
-#                absorbed, virtualCollision, iGroup, weight, detectS = mp.perform_collision(virtualCollision, absorbed, SigS, SigA, SigP, 
-#                                                                                    SigTmax, iGroup, iNeutron, detectS, weight, fuel["chi"])
-#            # End of neutron random walk cycle: from emission to absorption
-#        # End of loop over neutrons
-#        #-------------------------------------------------------------------------------------------
-#        # Russian roulette
-#        weight = mp.russian_roulette(weight, weight0)
-#
-#        #-------------------------------------------------------------------------------------------
-#        # Clean up absorbed or killed neutrons    
-#        # Convert x and y to NumPy arrays
-#        x = np.array(x)
-#        y = np.array(y)
-#        x, y, iGroup, weight, numNeutrons = mp.update_indices(x, y, iGroup, weight)
-#
-#        #-------------------------------------------------------------------------------------------
-#        # Split too "heavy" neutrons
-#        weight, numNeutrons, x, y, iGroup = mp.split_neutrons(weight, numNeutrons, x, y, iGroup)
-#
-#        #-------------------------------------------------------------------------------------------
-#        # k-eff in a cycle equals the total weight of the new generation over
-#        # the total weight of the old generation (the old generation weight =
-#        # numNeutronsBorn)
-#        mp.calculate_keff_cycle(iCycle, numCycles_inactive, numCycles_active, weight, weight0, numNeutrons, keff_active_cycle, keff_expected, sigma_keff)
-#
-#        # End of main (power) iteration
-#
 
     # Calculate the elapsed time
     elapsed_time = t.time() - start_time
@@ -346,3 +233,14 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+# Without Optimization
+#   real	3m56.100s
+#   user	3m55.538s
+#   sys	    0m1.239s
+
+
+# After Cython Optimization
+#   real	3m28.593s
+#   user	3m28.118s
+#   sys	    0m1.240s

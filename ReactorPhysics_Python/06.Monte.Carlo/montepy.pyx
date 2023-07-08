@@ -31,18 +31,19 @@ def move_neutron(np.ndarray[double, ndim=1] x, np.ndarray[double, ndim=1] y, int
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def calculate_cross_sections(   double leftDim, double rightDim,
+def calculate_cross_sections(   double fuelLeft, double fuelRight,
+                                double coolLeft, double coolRight,
                                 np.ndarray[double, ndim=1] x, int iNeutron,
                                 np.ndarray[np.int64_t, ndim=1] iGroup,
                                 dict fuel, dict cool, dict clad):
     cdef double SigA, SigP
     cdef np.ndarray[double, ndim=2] SigS
 
-    if leftDim < x[iNeutron] < rightDim:  # INPUT
+    if fuelLeft < x[iNeutron] < fuelRight:  # INPUT
         SigA = fuel['SigF'][iGroup[iNeutron]] + fuel['SigC'][iGroup[iNeutron]] + fuel['SigL'][iGroup[iNeutron]]
         SigS = fuel["sigS_G"]["sparse_SigS[0]"][iGroup[iNeutron], :].reshape(-1, 1)
         SigP = fuel['SigP'][0, iGroup[iNeutron]]
-    elif x[iNeutron] < leftDim or x[iNeutron] > rightDim:  # INPUT
+    elif x[iNeutron] < coolLeft or x[iNeutron] > coolRight:  # INPUT
         SigA = cool['SigC'][iGroup[iNeutron]] + cool['SigL'][iGroup[iNeutron]]
         SigS = cool["sigS_G"]["sparse_SigS[0]"][iGroup[iNeutron], :].reshape(-1, 1)
         SigP = 0
@@ -194,7 +195,8 @@ def calculate_keff_cycle(int iCycle, int numCycles_inactive, int numCycles_activ
 @cython.wraparound(False)
 def main_power_iteration_loop(  int numNeutrons_born, int numCycles_inactive, 
                                 int numCycles_active, int numNeutrons, 
-                                double pitch, double leftDim, double rightDim,
+                                double pitch, double fuelLeft, double fuelRight,
+                                double coolLeft, double coolRight,
                                 dict fuel, dict cool, dict clad,
                                 np.ndarray[double, ndim=1] weight,
                                 np.ndarray[double, ndim=1] SigTmax,
@@ -247,7 +249,7 @@ def main_power_iteration_loop(  int numNeutrons_born, int numCycles_inactive,
                 x, y = move_neutron(x, y, iNeutron, pitch, freePath, dirX, dirY)
 
                 # Find the total and scattering cross sections                    
-                SigA, SigS, SigP = calculate_cross_sections(leftDim, rightDim, x, iNeutron, iGroup, fuel, cool, clad)
+                SigA, SigS, SigP = calculate_cross_sections(fuelLeft, fuelRight, coolLeft, coolRight, x, iNeutron, iGroup, fuel, cool, clad)
                 
                 # Sample the type of the collision: virtual (do nothing) or real
                 absorbed, virtualCollision, iGroup, weight, detectS = perform_collision(virtualCollision, absorbed, SigS, SigA, SigP, 
