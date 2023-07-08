@@ -1,6 +1,8 @@
 import h5py
 import time as t
 import numpy as np
+import numba as nb
+from numba import njit, prange
 import matplotlib.pyplot as plt
 
 def hdf2dict(file_name):
@@ -33,6 +35,99 @@ def hdf2dict(file_name):
 
     return data
 
+#@nb.njit
+def sample_direction():
+    teta = np.pi * np.random.rand()
+    phi = 2.0 * np.pi * np.random.rand()
+    dirX = np.sin(teta) * np.cos(phi)
+    dirY = np.sin(teta) * np.sin(phi)
+    return dirX, dirY
+
+#@nb.njit
+def move_neutron(x, y, iNeutron, pitch, freePath, dirX, dirY):
+    x[iNeutron] += freePath * dirX
+    y[iNeutron] += freePath * dirY
+
+    # If outside the cell, find the corresponding point inside the cell
+    while x[iNeutron] < 0:
+        x[iNeutron] += pitch
+    while y[iNeutron] < 0:
+        y[iNeutron] += pitch
+    while x[iNeutron] > pitch:
+        x[iNeutron] -= pitch
+    while y[iNeutron] > pitch:
+        y[iNeutron] -= pitch
+
+    return x, y
+
+#@nb.njit
+def russian_roulette(weight, weight0):
+    numNeutrons = len(weight)
+    for iNeutron in range(numNeutrons):
+        terminateP = 1 - weight[iNeutron] / weight0[iNeutron]
+        if terminateP >= np.random.rand():
+            weight[iNeutron] = 0  # killed
+        elif terminateP > 0:
+            weight[iNeutron] = weight0[iNeutron]  # restore the weight
+    return weight
+
+#@nb.njit
+def split_neutrons(weight, numNeutrons, x, y, iGroup):
+    numNew = 0
+    for iNeutron in range(numNeutrons):
+        if weight[iNeutron] > 1:
+            N = int(weight[iNeutron])
+            if weight[iNeutron] - N > np.random.rand():
+                N += 1
+            weight[iNeutron] = weight[iNeutron] / N
+            for iNew in range(N - 1):
+                numNew += 1
+                x = np.append(x, x[iNeutron])
+                y = np.append(y, y[iNeutron])
+                weight = np.append(weight, weight[iNeutron])
+                iGroup = np.append(iGroup, iGroup[iNeutron])
+    numNeutrons += numNew
+    return weight, numNeutrons, x, y, iGroup
+
+def update_indices(x, y, iGroup, weight):
+    # Get the indices of non-zero weight
+    indices = np.nonzero(weight)[0]
+
+    # Perform indexing
+    x = x[indices]
+    y = y[indices]
+    iGroup = iGroup[indices]
+    weight = weight[indices]
+    
+    # Update numNeutrons
+    numNeutrons = weight.shape[0]
+    
+    return x, y, iGroup, weight, numNeutrons
+
+
+def calculate_keff_cycle(iCycle, numCycles_inactive, numCycles_active, weight, weight0, numNeutrons, keff_active_cycle, keff_expected, sigma_keff):
+    # Calculate k-eff in a cycle
+    keff_cycle = np.sum(weight) / np.sum(weight0)
+
+    iActive = iCycle - numCycles_inactive
+    if iActive <= 0:
+        print('Inactive cycle = {:3d}/{:3d}; k-eff cycle = {:.5f}; numNeutrons = {:3d}'.format(
+            iCycle, numCycles_inactive, keff_cycle, numNeutrons))
+    else:
+        # Update k-effective of the cycle
+        keff_active_cycle[iActive-1] = keff_cycle
+
+        # Update k-effective of the problem
+        keff_expected[iActive-1] = np.mean(keff_active_cycle[:iActive])
+
+        # Calculate standard deviation of k-effective
+        sigma_keff[iActive-1] = np.sqrt(
+            np.sum((keff_active_cycle[:iActive] - keff_expected[iActive-1]) ** 2) / max(iActive - 1, 1) / iActive)
+
+        print('Active cycle = {:3d}/{:3d}; k-eff cycle = {:.5f}; numNeutrons = {:3d}; k-eff expected = {:.5f}; sigma = {:.5f}'.format(
+            iCycle - numCycles_inactive, numCycles_active, keff_cycle, numNeutrons, keff_expected[iActive-1], sigma_keff[iActive-1]))
+
+
 def main():
     # Start the timer
     start_time = t.time()
@@ -53,7 +148,7 @@ def main():
     #--------------------------------------------------------------------------
     # Path to macroscopic cross section data:
     # (Assuming the corresponding data files are available and accessible)
-    macro_xs_path = '..//02.Macro.XS.421g'
+    #macro_xs_path = '..//02.Macro.XS.421g'
 
     # Fill the structures fuel, clad, and cool with the cross-section data
     fuel = hdf2dict('macro421_UO2_03__900K.h5')  # INPUT
@@ -125,25 +220,9 @@ def main():
                     # Sample the direction of neutron flight assuming both
                     # fission and scattering are isotropic in the lab (a strong
                     # assumption!)
-                    teta = np.pi * np.random.rand()
-                    phi = 2.0 * np.pi * np.random.rand()
-                    dirX = np.sin(teta) * np.cos(phi)
-                    dirY = np.sin(teta) * np.sin(phi)
-
+                    dirX, dirY = sample_direction()
                 # Fly
-                x[iNeutron] += freePath * dirX
-                y[iNeutron] += freePath * dirY
-
-                # If outside the cell, find the corresponding point inside the
-                # cell
-                while x[iNeutron] < 0:
-                    x[iNeutron] += pitch
-                while y[iNeutron] < 0:
-                    y[iNeutron] += pitch
-                while x[iNeutron] > pitch:
-                    x[iNeutron] -= pitch
-                while y[iNeutron] > pitch:
-                    y[iNeutron] -= pitch
+                x, y = move_neutron(x, y, iNeutron, pitch, freePath, dirX, dirY)
 
                 # Find the total and scattering cross sections
                 if 0.9 < x[iNeutron] < 2.7:  # INPUT
@@ -201,69 +280,21 @@ def main():
         # End of loop over neutrons
         #-------------------------------------------------------------------------------------------
         # Russian roulette
-        for iNeutron in range(numNeutrons):
-            terminateP = 1 - weight[iNeutron] / weight0[iNeutron]
-            if terminateP >= np.random.rand():
-                weight[iNeutron] = 0  # killed
-            elif terminateP > 0:
-                weight[iNeutron] = weight0[iNeutron]  # restore the weight
+        weight = russian_roulette(weight, weight0)
 
         #-------------------------------------------------------------------------------------------
         # Clean up absorbed or killed neutrons
-        indices = np.nonzero(weight)
-        x = x[indices]
-        y = y[indices]
-        iGroup = iGroup[indices]
-        weight = weight[indices]
-        numNeutrons = weight.shape[0]
+        x, y, iGroup, weight, numNeutrons = update_indices(x, y, iGroup, weight)
 
         #-------------------------------------------------------------------------------------------
         # Split too "heavy" neutrons
-        numNew = 0
-        for iNeutron in range(numNeutrons):
-            if weight[iNeutron] > 1:
-                # Truncated integer value of the neutron weight
-                N = int(np.floor(weight[iNeutron]))
-                # Sample the number of split neutrons
-                if weight[iNeutron] - N > np.random.rand():
-                    N += 1
-                # Change the weight of the split neutron
-                weight[iNeutron] = weight[iNeutron] / N
-                # Introduce new neutrons
-                for iNew in range(N - 1):
-                    numNew += 1
-                    x = np.append(x, x[iNeutron])
-                    y = np.append(y, y[iNeutron])
-                    weight = np.append(weight, weight[iNeutron])
-                    iGroup = np.append(iGroup, iGroup[iNeutron])
-
-        # Increase the number of neutrons
-        numNeutrons += numNew
+        weight, numNeutrons, x, y, iGroup = split_neutrons(weight, numNeutrons, x, y, iGroup)
 
         #-------------------------------------------------------------------------------------------
         # k-eff in a cycle equals the total weight of the new generation over
         # the total weight of the old generation (the old generation weight =
         # numNeutronsBorn)
-        keff_cycle = np.sum(weight) / np.sum(weight0)
-
-        iActive = iCycle - numCycles_inactive
-        if iActive <= 0:
-            print('Inactive cycle = {:3d}/{:3d}; k-eff cycle = {:.5f}; numNeutrons = {:3d}'.format(
-                iCycle, numCycles_inactive, keff_cycle, numNeutrons))
-        else:
-            print("iActive =", iActive)
-            # k-effective of the cycle
-            keff_active_cycle[iActive-1] = keff_cycle
-
-            # k-effective of the problem
-            keff_expected[iActive-1] = np.mean(keff_active_cycle[:iActive])
-
-            # Standard deviation of k-effective
-            sigma_keff[iActive-1] = np.sqrt(
-                np.sum((keff_active_cycle[:iActive] - keff_expected[iActive-1]) ** 2) / max(iActive - 1, 1) / iActive)
-
-            print('Active cycle = {:3d}/{:3d}; k-eff cycle = {:.5f}; numNeutrons = {:3d}; k-eff expected = {:.5f}; sigma = {:.5f}'.format(
-                iCycle - numCycles_inactive, numCycles_active, keff_cycle, numNeutrons, keff_expected[iActive-1], sigma_keff[iActive-1]))
+        calculate_keff_cycle(iCycle, numCycles_inactive, numCycles_active, weight, weight0, numNeutrons, keff_active_cycle, keff_expected, sigma_keff)
 
         # End of main (power) iteration
 
