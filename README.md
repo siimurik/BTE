@@ -6,6 +6,7 @@ Files for the master thesis on the topic named:
 Task 1. Download nuclear data from IAEA site.
 
 Folder: **01.Micro.XS.421g**
+
 Code to complete task: **downloadGXS.py**
 
 Download the GENDF files for the required isotopes from the open-access 
@@ -29,6 +30,7 @@ The isotopes used for the PWR-like unit cell calculations:
 Task 2. Convert data from GXS to CSV format.
 
 Folder: **01.Micro.XS.421g**
+
 Code to complete task: **convertGXS2CSV.py**
 
 Run the code **convertGXS2CSV.py**. The function scans the folder *GXS_files*
@@ -38,11 +40,14 @@ structure in the GENDF format and convert them to the CSV ("Comma Separated
 Values") file format readable by Excel and Python. Note that semicolons are 
 used in the script instead of commas, therefore, check that your regional 
 settings are set to use semicolons instead of commas as the list separator symbol.
+
 ---
 Task 3. Convert data from CSV to M format.
 
 Folder: **01.Micro.XS.421g**
+
 Code to complete task (slower: pure Python): **convertCSV2H5.py**
+
 Code to complete task (faster: Numba opt.): **boostedCSV2H5.py**
 
 Run the code **boostedCSV2H5.py**. The function scans the folder *CSV_files* 
@@ -68,20 +73,24 @@ The Matlab format file for an isotope includes:
 - total cross sections (b) for each sigma-zero (b);
 
 Note that (n,3n), etc. reactions are NOT included in the current version.
+
 ---
 Task 4. Calculate macroscopic cross sections for water solution of boric acid.
 
 Folder: **02.Macro.XS.421g**
+
 Code to complete task: **createH2OB.py**
 
 Run the code **createH2OB.py**. The function reads the MICROscopic group cross 
 sections in the HDF5 format from folder 01.Micro.XS.421g and calculates 
 from them the MACROscopic cross sections for water solution of boric acid 
 which is similar to the coolant of the pressurized water reactor.
+
 ---
 Task 5. Calculate macroscopic cross sections for natural zirconium.
 
 Folder: **02.Macro.XS.421g**
+
 Code to complete task: **createZry.py**
 
 Run the code **createZry.py**. The function reads the MICROsopic group cross 
@@ -89,24 +98,34 @@ sections in the HDF5 format from folder 01.Micro.XS.421g and calculates
 from them the MACROscopic cross sections for natural mixture of zirconium 
 isotopes which is the basis of zircalloy -- fuel cladding material of the 
 pressurized water reactor.
+
 ---
 Task 6. Calculate macroscopic cross sections for dioxide uranium.
 
 Folder: **02.Macro.XS.421g**
+
 Code to complete task: **createUO2_03.py**
 
 Run the code **createUO2_03.py**. The function reads the MICROscopic group cross 
 sections in the HDF5 format and calculates from them the MACROscopic cross 
 sections for dioxide uranium which is the fuel material of the pressurized 
 water reactor.
+
 ---
 Task 7. Run the Monte-Carlo method solver
 
 Folder: **06.Monte.Carlo**
 Code to complete task (pure Python): **MonteCarloPWR.py**
-Code to complete task (Cython opt.): **MonteCarloPWR.py**
+Code to complete task (Cython opt.): **setup.py** -> **mc_Cython.py**
 
-
+The code calculates the neutron transport in a 2D (x,y) unit cell
+similar to the unit cell of the pressurized water reactor using the Monte
+Carlo method. The **MonteCarloPWR.py** is written in pure Python, but 
+**mc_Cython.py**, which uses [Cython](https://cython.readthedocs.io/en/latest/). 
+The goal of this is to speed up the Monte-Carlo process by translating time-
+consuming functions into optimized C/C++ code and compiling them as 
+Python extension modules. Unfortunately, the speedup gained was not the most
+significant. On my PC there was only a 30 second speedup.
 
 ---
 
