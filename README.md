@@ -151,8 +151,8 @@ can offer faster execution times. The goal of using Cython is to speed up the
 Monte-Carlo process by translating timeconsuming functions into optimized 
 C/C++ code and compiling them as Python extension modules. 
 
-For this, Cython assumes the existence of *Python.h* header file. To enusure it is
-downloaded using the command.
+For this, Cython assumes the existence of the *Python.h* header file. To 
+ensure it is downloaded, use the following command.
 
 For `apt`:
 ```
