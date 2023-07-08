@@ -3,7 +3,7 @@ Files for the master thesis on the topic named:
 ## Development of a simplified Monte Carlo Neutron Transport routine in Python
 
 ---
-### Task 1. Download nuclear data from IAEA site.
+### Step 1. Download nuclear data from IAEA site.
 
 Folder: **01.Micro.XS.421g**
 
@@ -27,7 +27,7 @@ The isotopes used for the PWR-like unit cell calculations:
 * ZR096.GXS
 
 ---
-### Task 2. Convert data from GXS to CSV format.
+### Step 2. Convert data from GXS to CSV format.
 
 Folder: **01.Micro.XS.421g**
 
@@ -42,7 +42,7 @@ used in the script instead of commas, therefore, check that your regional
 settings are set to use semicolons instead of commas as the list separator symbol.
 
 ---
-### Task 3. Convert data from CSV to M format.
+### Step 3. Convert data from CSV to HDF5 format.
 
 Folder: **01.Micro.XS.421g**
 
@@ -81,7 +81,7 @@ The HDF5 format file for an isotope includes:
 Note that (n,3n), etc. reactions are NOT included in the current version.
 
 ---
-### Task 4. Calculate macroscopic cross sections for water solution of boric acid.
+### Step 4. Calculate macroscopic cross sections for water solution of boric acid.
 
 Folder: **02.Macro.XS.421g**
 
@@ -95,7 +95,7 @@ which is similar to the coolant of the pressurized water reactor.
 **P.S.** Ensure the [pyXSteam](https://github.com/drunsinn/pyXSteam) is installed.
 
 ---
-### Task 5. Calculate macroscopic cross sections for natural zirconium.
+### Step 5. Calculate macroscopic cross sections for natural zirconium.
 
 Folder: **02.Macro.XS.421g**
 
@@ -108,7 +108,7 @@ isotopes which is the basis of zircalloy -- fuel cladding material of the
 pressurized water reactor.
 
 ---
-### Task 6. Calculate macroscopic cross sections for dioxide uranium.
+### Step 6. Calculate macroscopic cross sections for dioxide uranium.
 
 Folder: **02.Macro.XS.421g**
 
@@ -120,7 +120,7 @@ sections for dioxide uranium which is the fuel material of the pressurized
 water reactor.
 
 ---
-### Task 7. Run the Monte-Carlo method solver
+### Step 7. Run the Monte-Carlo method solver
 
 Folder: **06.Monte.Carlo**
 
