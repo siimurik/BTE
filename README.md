@@ -50,10 +50,16 @@ Code to complete task (slower: pure Python): **convertCSV2H5.py**
 
 Code to complete task (faster: Numba opt.): **boostedCSV2H5.py**
 
-Run the code **boostedCSV2H5.py**. The function scans the folder *CSV_files* 
-for the files with the extension .CSV which are microscopic cross sections in 421 
-energy group structure in the CSV ("Comma-Separated Value") format, obtained 
-from the GENDF format, and convert them to the HDF5 format.
+The default option to complete this task is to run the code **boostedCSV2H5.py**. 
+However, doing this using pure Python can be extremely timeconsuming, which is why
+a second code was written that can be 15x times faster than the original, named
+**boostedCSV2H5.py**. What makes this code much more faster is a package named
+[Numba](https://numba.readthedocs.io/en/stable/). It is a just-in-time compiler for 
+Python that works best on code that uses NumPy arrays and functions, and loops.
+The function scans the folder *CSV_files* for the files with the extension .CSV 
+which are microscopic cross sections in 421 energy group structure in the CSV 
+("Comma-Separated Value") format, obtained from the GENDF format, and convert 
+them to the HDF5 format.
 
 For every temperature available in the GENDF file, separate HDF5 dataset is created.
 
@@ -86,6 +92,8 @@ sections in the HDF5 format from folder 01.Micro.XS.421g and calculates
 from them the MACROscopic cross sections for water solution of boric acid 
 which is similar to the coolant of the pressurized water reactor.
 
+PS. Ensure the [pyXSteam](https://github.com/drunsinn/pyXSteam) is installed.
+
 ---
 Task 5. Calculate macroscopic cross sections for natural zirconium.
 
@@ -115,7 +123,9 @@ water reactor.
 Task 7. Run the Monte-Carlo method solver
 
 Folder: **06.Monte.Carlo**
+
 Code to complete task (pure Python): **MonteCarloPWR.py**
+
 Code to complete task (Cython opt.): **setup.py** -> **mc_Cython.py**
 
 The code calculates the neutron transport in a 2D (x,y) unit cell
