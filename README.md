@@ -152,8 +152,9 @@ Monte-Carlo process by translating timeconsuming functions into optimized
 C/C++ code and compiling them as Python extension modules. 
 
 For this, Cython assumes the existence of *Python.h* header file. To enusure it is
-downloaded using the command
-for `apt`:
+downloaded using the command.
+
+For `apt`:
 ```
 sudo apt-get install python-dev   # for python2.x installs
 sudo apt-get install python3-dev  # for python3.x installs
@@ -165,8 +166,9 @@ sudo dnf install python2-devel  # for python2.x installs
 sudo dnf install python3-devel  # for python3.x installs
 ```
 To run the Cython version, run the **setup.py** file to set up the Python modules with the command  
-
-> python3 setup.py build_ext --inplace
+```
+python3 setup.py build_ext --inplace
+```
 
 After which you can run the **mc_Cython.py** like a normal Python file.
 
