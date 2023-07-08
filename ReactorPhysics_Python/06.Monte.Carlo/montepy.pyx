@@ -13,7 +13,12 @@ def sample_direction():
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def move_neutron(np.ndarray[double, ndim=1] x, np.ndarray[double, ndim=1] y, int iNeutron, double pitch, double freePath, double dirX, double dirY):
+def move_neutron(   np.ndarray[double, ndim=1] x, 
+                    np.ndarray[double, ndim=1] y, 
+                    int iNeutron, double pitch, 
+                    double freePath, 
+                    double dirX, double dirY):
+                    
     x[iNeutron] += freePath * dirX
     y[iNeutron] += freePath * dirY
 
