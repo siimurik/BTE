@@ -151,8 +151,8 @@ can offer faster execution times. The goal of using Cython is to speed up the
 Monte-Carlo process by translating timeconsuming functions into optimized 
 C/C++ code and compiling them as Python extension modules. 
 
-**P.S.** Unfortunately, the speedup gained was not the most significant. 
-On my PC there was only a 30 second speedup.
+**P.S.** Unfortunately, the speedup gained using **mc_Cython.py** was not the 
+most significant. On my PC there was only a 30 second speed gain.
 
 ---
 
