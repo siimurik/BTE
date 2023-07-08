@@ -92,7 +92,7 @@ sections in the HDF5 format from folder 01.Micro.XS.421g and calculates
 from them the MACROscopic cross sections for water solution of boric acid 
 which is similar to the coolant of the pressurized water reactor.
 
-PS. Ensure the [pyXSteam](https://github.com/drunsinn/pyXSteam) is installed.
+**P.S.** Ensure the [pyXSteam](https://github.com/drunsinn/pyXSteam) is installed.
 
 ---
 ### Task 5. Calculate macroscopic cross sections for natural zirconium.
@@ -131,11 +131,13 @@ Code to complete task (Cython opt.): **setup.py** -> **mc_Cython.py**
 The code calculates the neutron transport in a 2D (x,y) unit cell
 similar to the unit cell of the pressurized water reactor using the Monte
 Carlo method. The **MonteCarloPWR.py** is written in pure Python, but 
-**mc_Cython.py**, which uses [Cython](https://cython.readthedocs.io/en/latest/). 
-The goal of this is to speed up the Monte-Carlo process by translating time-
-consuming functions into optimized C/C++ code and compiling them as 
-Python extension modules. Unfortunately, the speedup gained was not the most
-significant. On my PC there was only a 30 second speedup.
+**mc_Cython.py**, which uses [Cython](https://cython.readthedocs.io/en/latest/), 
+can offer faster execution times. The goal of using Cython is to speed up the 
+Monte-Carlo process by translating timeconsuming functions into optimized 
+C/C++ code and compiling them as Python extension modules. 
+
+**P.S.** Unfortunately, the speedup gained was not the most significant. 
+On my PC there was only a 30 second speedup.
 
 ---
 
