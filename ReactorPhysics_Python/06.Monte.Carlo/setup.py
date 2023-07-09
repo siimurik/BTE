@@ -2,18 +2,21 @@
  Run this code with the command:
     > python3 setup.py build_ext --inplace
 """
-from distutils.core import setup
+from distutils.core import setup, Extension
 from Cython.Build import cythonize
+import numpy
 
-# List of Cython source files or module names
-#cython_modules = ['sample_direction.pyx', 'move_neutron.pyx', 'russian_roulette.pyx', 'split_neutrons.pyx', 'calculate_keff_cycle.pyx', 'update_indices.pyx', 'perform_collision.pyx']
+setup(
+    ext_modules=[
+        Extension("montepy", ["montepy.c"],
+                  include_dirs=[numpy.get_include()]),
+    ],
+)
 
-cython_modules = ['montepy.pyx']
+# Or, if you use cythonize() to make the ext_modules list,
+# include_dirs can be passed to setup()
 
-# Configure the setup options
-setup_options = {
-    'ext_modules': cythonize(cython_modules)
-}
-
-# Run the setup
-setup(**setup_options)
+setup(
+    ext_modules=cythonize("montepy.pyx"),
+    include_dirs=[numpy.get_include()]
+)   
