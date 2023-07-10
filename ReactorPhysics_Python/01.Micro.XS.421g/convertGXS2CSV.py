@@ -1,6 +1,5 @@
 import os
 from tqdm import tqdm
-import shutil
 
 def convertGXStoCSV():
     # Create a directory to save the CSV files
