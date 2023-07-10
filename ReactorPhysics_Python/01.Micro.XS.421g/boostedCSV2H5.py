@@ -3,7 +3,6 @@ import h5py
 import numba
 from numba import jit, prange
 import numpy as np
-import pandas as pd
 import scipy.sparse as sparse
 from scipy.sparse import find
 
