@@ -185,6 +185,24 @@ Initially this method did not bear much fruit compared to the original **MonteCa
 code. However, using the functions that were meant for the Cython version of the code, 
 adding the Numba decorator to only those math-heavy functions, a notible increase in the 
 final run time was acieved. 
+```
+-----------------------------------------------------------------------------
+ Without Optimization (Pure Python):
+    $ real	3m56.100s
+    $ user	3m55.538s
+    $ sys   0m1.239s
+
+ After Cython Optimization
+    $ real	3m28.593s
+    $ user	3m28.118s
+    $ sys   0m1.240s
+    
+ With Numba Optimization:
+    $ real	1m31.406s
+    $ user	1m31.557s
+    $ sys	  0m1.770s
+=============================================================================
+```
 
 ---
 ## OLD/DEPRECATED NOTES:
