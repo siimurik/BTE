@@ -178,10 +178,10 @@ most significant. On my PC there was only a 30 second speed gain.
 However there was some luck with speeding up the final code with some noticable improvement. 
 This was achieved again with the help of [Numba](https://numba.readthedocs.io/en/stable/).
 This version of the Monte-Carlo simulation can be found under the name **numba_mc.py**.
-Initially this method did bear much fruit compared to the original **MonteCarloPWR.py**
-code. However, using the special keyword argument `fastmath`, which allows the math-heavy
-functions to relax some numerical rigour with view of gaining additional performance. It is 
-'cheating' in a way, but the shape of the final graphs is not affected by this drawback. To read 
+Initially this method did not bear much fruit compared to the original **MonteCarloPWR.py**
+code. However, using the special keyword argument `fastmath` allows the math-heavy functions
+to relax some numerical rigour with view of gaining additional performance. It is 'cheating'
+in a way, but the shape of the final graphs is not affected by this drawback. To read 
 more on the topic of using this keyword: [Fastmath](https://numba.pydata.org/numba-doc/latest/user/performance-tips.html#fastmath)
 
 ---
