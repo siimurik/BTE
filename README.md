@@ -195,7 +195,7 @@ final run time was acieved.
  After Cython Optimization
     $ real	3m28.593s
     $ user	3m28.118s
-    $ sys   0m1.240s
+    $ sys	 0m1.240s
     
  With Numba Optimization:
     $ real	1m28.181s
