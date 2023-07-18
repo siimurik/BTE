@@ -143,6 +143,8 @@ Code to complete task (pure Python): **MonteCarloPWR.py**
 
 Code to complete task (Cython opt.): **setup.py** -> **mc_Cython.py**
 
+Code to complete task (Numba opt.): **numba_mc.py**
+
 The code calculates the neutron transport in a 2D (x,y) unit cell
 similar to the unit cell of the pressurized water reactor using the Monte
 Carlo method. The **MonteCarloPWR.py** is written in pure Python, but 
