@@ -188,19 +188,19 @@ final run time was acieved.
 ```
 -----------------------------------------------------------------------------
  Without Optimization (Pure Python):
-    $ real	3m56.100s
-    $ user	3m55.538s
-    $ sys	 0m1.239s
+    $ real	4m23.505s
+    $ user	4m22.852s
+    $ sys	 0m1.205s
 
  After Cython Optimization
     $ real	3m28.593s
     $ user	3m28.118s
-    $ sys	 0m1.240s
+    $ sys   0m1.240s
     
  With Numba Optimization:
-    $ real	1m31.406s
-    $ user	1m31.557s
-    $ sys	 0m1.770s
+    $ real	1m28.181s
+    $ user	1m28.348s
+    $ sys	 0m1.709s
 =============================================================================
 ```
 
