@@ -186,7 +186,7 @@ code. However, using the functions that were meant for the Cython version of the
 adding the Numba decorator to only those math-heavy functions, a notible increase in the 
 final run time was acieved. 
 ```
------------------------------------------------------------------------------
+=============================================================================
  Without Optimization (Pure Python):
     $ real	4m23.505s
     $ user	4m22.852s
