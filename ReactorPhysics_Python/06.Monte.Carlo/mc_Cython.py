@@ -74,9 +74,20 @@ def hdf2dict(file_name):
  similar to the unit cell of the pressurized water reactor using the Monte
  Carlo method. 
 ---------------------------------------------------------------------------
- This version uses the Cython boosted custon Python module named 'montepy',
+ This version uses the Cython boosted custom Python module named 'montepy',
  which is supposed to speed up the main for-loop resposible for the Monte
- Carlo method.
+ Carlo method by translating time-consuming functions into optimized C/C++ 
+ code and compiling them as Python extension modules.
+---------------------------------------------------------------------------
+# Without Optimization
+    $ real	4m23.505s
+    $ user	4m22.852s
+    $ sys	0m1.205s
+
+# After Cython Optimization
+    $ real	3m28.593s
+    $ user	3m28.118s
+    $ sys   0m1.240s
 ===========================================================================
 """
 def main():
@@ -233,14 +244,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-# Without Optimization
-#   real	3m56.100s
-#   user	3m55.538s
-#   sys	    0m1.239s
-
-
-# After Cython Optimization
-#   real	3m28.593s
-#   user	3m28.118s
-#   sys	    0m1.240s
