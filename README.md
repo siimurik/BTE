@@ -175,8 +175,17 @@ After which you can run the **mc_Cython.py** like a normal Python file.
 **P.S.** Unfortunately, the speedup gained using **mc_Cython.py** was not the 
 most significant. On my PC there was only a 30 second speed gain.
 
----
+However there was some luck with speeding up the final code with some noticable improvement. 
+This was achieved again with the help of [Numba](https://numba.readthedocs.io/en/stable/).
+This version of the Monte-Carlo simulation can be found under the name **numba_mc.py**.
+Initially this method did bear much fruit compared to the original **MonteCarloPWR.py**
+code. However, using the special keyword argument `fastmath`, which allows the math-heavy
+functions to relax some numerical rigour with view of gaining additional performance. It is 
+'cheating' in a way, but the shape of the final graphs is not affected by this drawback. To read 
+more on the topic of using this keyword: [Fastmath](https://numba.pydata.org/numba-doc/latest/user/performance-tips.html#fastmath)
 
+---
+## OLD/DEPRECATED NOTES:
 # Current progress (MATLAB -> Python):
 * File **convertGSXtoCSV.m** has successfully been converted into a Python file named **convertGSX2CSV.py**.
 * File **convertCSVtoM.m** depends on three main functions: **extractNwords()**, **extract_mf3()** and **extract_mf6()**. These functions are located in a Jupyter Notebook named **testPython.ipynb** in the ***ReactorPhysics_Python*** folder. A MATLAB file named **testMATLAB.m** has also been added as a testing ground for secluded functions. Final code is written in the file **convertCSV2H5.py**. Progress at the moment:
