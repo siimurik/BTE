@@ -3,6 +3,7 @@ import h5py
 import numba
 from numba import jit, prange
 import numpy as np
+import pandas as pd
 import scipy.sparse as sparse
 from scipy.sparse import find
 
@@ -436,7 +437,7 @@ if __name__ == '__main__':
 # sys	0m2.778s
 
 # With numba:
-# real    1m10.210s
-# user    1m6.516s
-# sys     0m4.239s
+# real	5m57.630s
+# user	5m55.050s
+# sys	0m2.629s
 
