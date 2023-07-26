@@ -1405,7 +1405,7 @@ for nIter in range(1, numIter + 1):
                     for n in range(g['N']):
                         SUM += fi[:, n, ix - 1, iy - 1] * g['R'][n][jLgn, jLgn + m] * g['W'][n]
                     fiL[ix - 1, iy - 1, :, jLgn, jLgn + m] = SUM
-            FI[ix - 1, iy - 1, :] = fiL[ix - 1, iy - 1, :, 0, g['L']]
+            FI[ix - 1, iy - 1, :] = fiL[ix - 1, iy - 1, :, 0, 0]
 
     #-----------------------------------------------------------------------
     # pRate is total neutron production rate
