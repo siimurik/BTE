@@ -4,7 +4,7 @@ import time as t
 import numpy as np
 import numba as nb
 import scipy as sp
-import scipy.sparse.linalg as spla
+import matplotlib.pyplot as plt
 from pyXSteam.XSteam import XSteam
 
 def getLebedevReccurencePoints(type, start, a, b, v, leb):
@@ -637,7 +637,6 @@ def getLebedevSphere(degree):
         
     return leb_tmp
 
-
 def initPWR_like():
     #global global_g
     with h5py.File("..//00.Lib/initPWR_like.h5", "w") as hdf:
@@ -880,16 +879,15 @@ def convert(solution):
     ng = 421
     # Define the cell array for angular fluxes
     fi = np.zeros((ng, g['N'], g['nNodesX'], g['nNodesY']))
-    #solution = np.ones(261020)  # Assuming 261020 elements in the solution vector
-    flux = solution.reshape(ng, -1)
+    #solution = np.ones(261020)  # For testing
+    flux = np.reshape(solution, (ng, -1), order='F')
     nEq = 0
     for iy in range(g['nNodesY']):
         for ix in range(g['nNodesX']):
             for n in range(g['N']):
-                if g['muZ'][n] >= 0 and not (ix == 0 and g['muX'][n] > 0) and not \
-                (ix == g['nNodesX'] - 1 and g['muX'][n] < 0) and not \
-                (iy == 0 and g['muY'][n] > 0) and not \
-                (iy == g['nNodesY'] - 1 and g['muY'][n] < 0):
+                if g['muZ'][n] >= 0 and not (ix == 0 and g['muX'][n] > 0) and not (ix == g['nNodesX'] - 1 and g['muX'][n] < 0) and not \
+                (iy == 0 and g['muY'][n] > 0) and not (iy == g['nNodesY'] - 1 and g['muY'][n] < 0):
+                    #nEq += 1
                     fi[:, n, ix, iy] = flux[:, nEq]
                     nEq += 1
 
@@ -948,7 +946,7 @@ def funDO(solution):
                     dfidx, dfidy = gradients(n, ix, iy, fi)
 
                     nEq += 1
-                    LHS_list.append(g["muX"][n] * dfidx + g["muY"][n] * dfidy + SigT[ix, iy] * fi[:, n, ix, iy])
+                    LHS_list.append(g["muX"][n]*dfidx + g["muY"][n]*dfidy + SigT[ix, iy]*fi[:, n, ix, iy])
 
     # Make 1D vector
     LHS = np.array(LHS_list)
@@ -957,28 +955,27 @@ def funDO(solution):
     return ax
 
 def gradients(n, ix, iy, fi):
-
     global g
 
     if g["muX"][n] > 0:
         if ix == 0:
-            dfiX = fi[:, g["nRefX"][n] - 1, ix, iy] - fi[:, g["nRefX"][n] - 1, ix + 1, iy]
+            dfiX = fi[:, g["nRefX"][n], ix, iy] - fi[:, g["nRefX"][n], ix + 1, iy]
         else:  # if ix > 0
             dfiX = fi[:, n, ix, iy] - fi[:, n, ix - 1, iy]
-    else:  # if g["muX"](n) <= 0
-        if ix == g["nNodesX"] - 1:
-            dfiX = fi[:, g["nRefX"][n] - 1, ix - 1, iy] - fi[:, g["nRefX"][n] - 1, ix, iy]
-        else:  # if ix < g["nNodesX"] - 1
+    else:  # if g["muX"][n] <= 0
+        if ix ==g["nNodesX"] - 1:
+            dfiX = fi[:, g["nRefX"][n], ix - 1, iy] - fi[:, g["nRefX"][n], ix, iy]
+        else:  # if ix <g["nNodesX"] - 1
             dfiX = fi[:, n, ix + 1, iy] - fi[:, n, ix, iy]
 
     if g["muY"][n] > 0:
         if iy == 0:
-            dfiY = fi[:, g["nRefY"][n] - 1, ix, iy] - fi[:, g["nRefY"][n] - 1, ix, iy + 1]
+            dfiY = fi[:, g["nRefY"][n], ix, iy] - fi[:, g["nRefY"][n], ix, iy + 1]
         else:  # if iy > 0
             dfiY = fi[:, n, ix, iy] - fi[:, n, ix, iy - 1]
-    else:  # if g["muY"](n) <= 0
+    else:  # if g["muY"][n] <= 0
         if iy == g["nNodesY"] - 1:
-            dfiY = fi[:, g["nRefY"][n] - 1, ix, iy - 1] - fi[:, g["nRefY"][n] - 1, ix, iy]
+            dfiY = fi[:, g["nRefY"][n], ix, iy - 1] - fi[:, g["nRefY"][n], ix, iy]
         else:  # if iy < g["nNodesY"] - 1
             dfiY = fi[:, n, ix, iy + 1] - fi[:, n, ix, iy]
 
@@ -987,6 +984,196 @@ def gradients(n, ix, iy, fi):
 
     return dfidx, dfidy
 
+#@nb.njit
+def get_nonzero_nonnan_values(rho):
+    # Get indices of non-zero elements using np.nonzero
+    nonzero_indices = np.nonzero(rho)
+
+    # Create a boolean mask to identify non-nan elements
+    nonnan_mask = ~np.isnan(rho)
+
+    # Combine the indices and mask using logical AND (&) to get the final indices
+    final_indices = nonzero_indices[0][nonnan_mask[nonzero_indices]]
+
+    # Use the final indices to get only the nonzero and non-nan elements
+    nonzero_nonnan_values = rho[final_indices]
+
+    return nonzero_nonnan_values
+
+def bicgstab_v2(x0, b, params):
+    # Initialization
+    n = len(b)
+    errtol = params[0] * np.linalg.norm(b)
+    kmax = params[1]
+    error = []
+    x = x0.copy()
+    rho = np.zeros(int(kmax + 1))
+
+    if np.linalg.norm(x) != 0:
+        r = b - funDO(x)
+    else:
+        r = b
+
+    hatr0 = r
+    k = -1
+    rho[0] = 1
+    alpha = 1
+    omega = 1
+    v = np.zeros(n)
+    p = np.zeros(n)
+    rho[1] = np.dot(hatr0, r)
+    zeta = np.linalg.norm(r)
+    error.append(zeta)
+    rho = get_nonzero_nonnan_values(rho)
+    # Bi-CGSTAB iteration
+    total_iters = 0
+    while zeta > errtol and k < kmax:
+        k += 1
+        if omega == 0:
+            raise ValueError("Bi-CGSTAB breakdown, omega=0")
+
+        beta = (rho[k + 1] / rho[k]) * (alpha / omega)
+        p = r + beta * (p - omega * v)
+        v = funDO(p)
+        tau = np.dot(hatr0, v)
+
+        if tau == 0:
+            raise ValueError("Bi-CGSTAB breakdown, tau=0")
+
+        alpha = rho[k + 1] / tau
+        s = r - alpha * v
+        t = funDO(s)
+        tau = np.dot(t, t)
+
+        if tau == 0:
+            raise ValueError("Bi-CGSTAB breakdown, t=0")
+
+        omega = np.dot(t, s) / tau
+        #rho[k + 1] = -omega * np.dot(hatr0, t)
+        rho = np.append(rho, -omega * np.dot(hatr0, t))
+        x = x + alpha * p + omega * s
+        r = s - omega * t
+        zeta = np.linalg.norm(r)
+        total_iters = k
+        error.append(zeta)
+
+    return x, np.array(error), total_iters
+
+def plot2D(nNodesX, nNodesY, delta, fun, tit, fileName):
+    fig, ax = plt.subplots(figsize=(8, 6))
+    ax.set_aspect('equal')
+    ax.set_xlim(0, delta * (nNodesX - 1))
+    ax.set_ylim(-delta * (nNodesY - 1), 0)
+    ax.set_xlabel('Distance from the cell center (cm)')
+    ax.set_ylabel('Distance from the cell center (cm)')
+    ax.set_title(tit)
+
+    fMax = np.max(fun)
+    fMin = np.min(fun)
+
+    y = 0
+    for iy in range(nNodesY):
+        x = 0
+        height = delta - delta / 2 * (iy == 0 or iy == nNodesY - 1)
+        y = y - height
+        for ix in range(nNodesX):
+            width = delta - delta / 2 * (ix == 0 or ix == nNodesX - 1)
+            color = (fun[iy, ix] - fMin) / max(fMax - fMin, 1e-20)
+            color = 0 if np.isnan(color) else color
+            ax.add_patch(plt.Rectangle((x, y), width, height, facecolor=[color, 0, 1 - color], edgecolor=[0.5, 0.5, 0.5], linewidth=0.2))
+            x = x + width
+
+    plt.savefig(fileName, bbox_inches='tight')
+    plt.close()
+
+def plot_results(s):
+    # Plot keff vs. iteration number
+    plt.figure(figsize=(8, 6))
+    plt.plot(s['keffHistory'], '-or')
+    plt.grid(True)
+    plt.xlabel('Iteration number')
+    plt.ylabel('k-effective')
+    plt.savefig('DO_02_keff.pdf', bbox_inches='tight')
+    plt.close()
+
+    # Plot residual error vs. iteration number
+    plt.figure(figsize=(8, 6))
+    plt.semilogy(s['residualHistory'], '-or')
+    plt.grid(True)
+    plt.xlabel('Iteration number')
+    plt.ylabel('Relative residual error')
+    plt.savefig('DO_03_residual.pdf', bbox_inches='tight')
+    plt.close()
+
+    # Plot neutron flux per unit lethargy
+    plt.figure(figsize=(8, 6))
+    plt.semilogx(s['eg'], s['FIFuel_du'], '-r', label='Fuel')
+    plt.semilogx(s['eg'], s['FIClad_du'], '-g', label='Cladding')
+    plt.semilogx(s['eg'], s['FICool_du'], '-b', label='Coolant')
+    plt.grid(True)
+    plt.xlabel('Energy (eV)')
+    plt.ylabel('Neutron flux per unit lethargy (a.u.)')
+    plt.legend(loc='upper left')
+    plt.savefig('DO_04_flux_lethargy.pdf', bbox_inches='tight')
+    plt.close()
+
+    # Plot neutron flux distribution along the cell centerline
+    plt.figure(figsize=(8, 6))
+    plt.plot(s['x'], s['FI_F'], '-or', label='Fast')
+    plt.plot(s['x'], s['FI_R'], '-og', label='Resonance')
+    plt.plot(s['x'], s['FI_T'], '-ob', label='Thermal')
+    plt.grid(True)
+    plt.xlabel('Distance from the cell center (cm)')
+    plt.ylabel('Neutron flux (a.u.)')
+    plt.legend(loc='upper left')
+    plt.savefig('DO_05_flux_cell.pdf', bbox_inches='tight')
+    plt.close()
+
+    # Initialize funT, funR, and funF arrays with zeros
+    funT = np.zeros((g["nNodesY"], g["nNodesX"]))
+    funR = np.zeros((g["nNodesY"], g["nNodesX"]))
+    funF = np.zeros((g["nNodesY"], g["nNodesX"]))
+
+    for iy in range(g["nNodesY"]):
+        for ix in range(g["nNodesX"]):
+            # Slicing and summing the corresponding ranges for each array
+            funT[iy, ix] = np.sum(FI[ix, iy][0:50])
+            funR[iy, ix] = np.sum(FI[ix, iy][50:355])
+            funF[iy, ix] = np.sum(FI[ix, iy][355:421])
+
+    # Plot 2D flux distributions
+    plot2D(g["nNodesX"], g["nNodesY"], g["delta"], funT, 'Thermal flux distribution', 'DO_06_flux_thermal.pdf')
+    plot2D(g["nNodesX"], g["nNodesY"], g["delta"], funR, 'Resonance flux distribution', 'DO_07_flux_resonance.pdf')
+    plot2D(g["nNodesX"], g["nNodesY"], g["delta"], funF, 'Fast flux distribution', 'DO_08_flux_fast.pdf')
+
+def plot_hdf2dict(file_name):
+    # Define the dictionary to store the datasets
+    data = {}
+    #file_name = 'macro421_UO2_03__900K.h5'
+    with h5py.File(file_name, 'r') as file:
+        # Iterate over the dataset names in the group
+        for dataset_name in file.keys():
+            # Read the dataset
+            dataset = file[dataset_name]
+            # Check if the dataset is a struct
+            if isinstance(dataset, h5py.Group):
+                # Create a dictionary to store the struct fields
+                struct_data = {}
+                # Iterate over the fields in the struct
+                for field_name in dataset.keys():
+                    # Read the field dataset
+                    field_dataset = np.array(dataset[field_name])
+                    # Store the field dataset in the struct dictionary
+                    struct_data[field_name] = field_dataset
+                # Store the struct data in the main data dictionary
+                data[dataset_name] = struct_data
+            else:
+                # Read the dataset as a regular array
+                dataset_array = np.array(dataset)
+                # Store the dataset array in the dictionary
+                data[dataset_name] = dataset_array
+    #return data
+    plot_results(data)
 
 # Start stopwatch
 
@@ -1178,8 +1365,8 @@ for nIter in range(1, numIter + 1):
         for ix in range(g['nNodesX']):
             pRate += (SigP[ix, iy] + 2 * np.sum(Sig2[ix, iy, :], axis = 1)) @ FI[ix, iy] * volume[ix, iy]
             #        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ The exact point where everything goes to shit
-            # Best theory at the moment is that floating point errors start to accumulate a will start causing noticable 
-            # differences in final output
+            # Best theory at the moment is that floating point errors start to accumulate and will start causing noticable 
+            # differences in the final output
             aRate += SigA[ix, iy] @ FI[ix, iy] * volume[ix, iy]
             #print("pRate", pRate, "\naRate =", aRate)
     #print(sp.sparse.coo_matrix(2 * np.sum(Sig2[ix, iy, :], axis = 1)))
@@ -1245,23 +1432,93 @@ for nIter in range(1, numIter + 1):
     # Solver of a system of linear algebraic equations:
     A = sp.sparse.linalg.LinearOperator((len(RHS), len(RHS)), matvec=lambda x: funDO(x))
     # Call the bicgstab solver
-    solution, info = sp.sparse.linalg.bicgstab(A, RHS, tol=1e-4, maxiter=2000, x0=guess)
+    #solution, info = sp.sparse.linalg.bicgstab(A, RHS, tol=1e-4, maxiter=2000, x0=guess)
+    params = [errtol, maxit]
 
-    # Compute nInner based on the number of iterations performed by the solver
-    #nInner = info['iterations']
+    # Call the CUSTOM bicgstab solver
+    solution, r, nInner = bicgstab_v2(guess, RHS, params)
 
-    # Compute the residual and add it to the list
-    matAx = A @ solution
-    nInner = np.linalg.norm(RHS - matAx)/np.linalg.norm(RHS)
-    residual.append(nInner)
+    # Compute the relative residual error (residual) for this iteration
+    residual.append(r[-1]/np.linalg.norm(RHS))
 
-    print(
-        #f'nInner = {nInner + 1}, 
-        f'nInner = {nInner:.5e}, target = {errtol:.5e}')
+    # Display the results
+    print('nInner = %5.1f residual = %11.5e target = %11.5e' % (nInner, residual[-1], errtol))
 
     if nInner <= errtol:
         break
+print("Iterations finished")
+#stop_time = t.time()
+#print(f'Elapsed time: {stop_time-start_time}')
+#print("Solution:", solution)
+#---------------------------------------------------------------------------
+# Find integral scalar flux in fuel, cladding, and coolant (average spectra)
+vol_fuel = np.sum(volume[0:5, :])
+vol_clad = np.sum(volume[5, :])
+vol_cool = np.sum(volume[6:, :])
 
-stop_time = t.time()
-print(f'Elapsed time: {stop_time-start_time}')
-print("Solution:", solution)
+FIFuel = np.zeros(ng)
+FIClad = np.zeros(ng)
+FICool = np.zeros(ng)
+
+for iy in range(g["nNodesY"]):
+    for ix in range(g["nNodesX"]):
+        if mat[iy, ix] == 2:
+            FIFuel += FI[ix, iy] * volume[ix, iy] / vol_fuel
+        elif mat[iy, ix] == 1:
+            FIClad += FI[ix, iy] * volume[ix, iy] / vol_clad
+        elif mat[iy, ix] == 0:
+            FICool += FI[ix, iy] * volume[ix, iy] / vol_cool
+
+
+# Open the HDF5 file for writing
+with h5py.File('resultsPWR.h5', 'w') as file:
+    file.create_dataset('N', data=np.array([g["N"]]))  # g["N"]: Number of ordinates
+    file.create_dataset('L', data=np.array([g["L"]]))  # g["L"]: Scattering source anisotropy approximation
+
+    # Stop stopwatch
+    stop_time = t.time()
+    elapsedTime = stop_time-start_time
+
+    file.create_dataset('elapsedTime', data=np.array([elapsedTime]))
+
+    file.create_dataset('keff', data=np.array([keff[-1]]))
+    file.create_dataset('keffHistory', data=keff)
+
+    file.create_dataset('residualHistory', data=residual)
+
+    x = np.arange(0, g["delta"] * g["nNodesX"], g["delta"])
+    file.create_dataset('x', data=x)
+
+    eg = (fuel["eg"][0:ng] + fuel["eg"][1:ng+1]) / 2.0
+    file.create_dataset('eg', data=eg)
+
+    du = np.log(fuel["eg"][1:ng+1] / fuel["eg"][0:ng])
+    FIFuel_du = FIFuel[0:ng] / du
+    FIClad_du = FIClad[0:ng] / du
+    FICool_du = FICool[0:ng] / du
+    file.create_dataset('FIFuel_du', data=FIFuel_du)
+    file.create_dataset('FIClad_du', data=FIClad_du)
+    file.create_dataset('FICool_du', data=FICool_du)
+
+    FI_T = []
+    FI_R = []
+    FI_F = []
+
+    for ix in range(g["nNodesX"]):
+        FI_T.append(np.sum(FI[(ix, 0)][0:50]))
+        FI_R.append(np.sum(FI[(ix, 0)][50:288]))
+        FI_F.append(np.sum(FI[(ix, 0)][288:421]))
+
+    file.create_dataset('FI_T', data=FI_T)
+    file.create_dataset('FI_R', data=FI_R)
+    file.create_dataset('FI_F', data=FI_F)
+
+
+#--------------------------------------------------------------------------
+# Plot the mesh
+plot2D(g["nNodesX"], g["nNodesY"], g["delta"], mat, 'Unit cell: materials', 'DO_01_mesh.pdf')
+
+#--------------------------------------------------------------------------
+# Plot the results
+plot_hdf2dict("resultsPWR.h5")
+print("Plotting finished.")
