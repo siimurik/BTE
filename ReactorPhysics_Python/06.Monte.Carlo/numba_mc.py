@@ -179,6 +179,31 @@ def calculate_cross_sections(fuelLeft, fuelRight, coolLeft, coolRight, x, iNeutr
 
     return SigA, SigS, SigP
 
+@nb.njit
+def calculate_cross_sections_by_region(fuelLeft, fuelRight, coolLeft, coolRight,
+                                       x, iNeutron, iGroup, 
+                                       fuel_SigF, fuel_SigC, fuel_SigL, fuelSigP,
+                                       fuel_sparse_SigS,
+                                       cool_SigC,  cool_SigL, 
+                                       cool_sparse_SigS,
+                                       clad_SigC, clad_SigL,
+                                       clad_sparse_SigS
+                                       ):
+    if fuelLeft < x[iNeutron] < fuelRight:          # INPUT - Initial: 0.9 < x[iNeutron] < 2.7
+        SigA = fuel_SigF[iGroup[iNeutron]] + fuel_SigC[iGroup[iNeutron]] +  fuel_SigL[iGroup[iNeutron]]
+        SigS = fuel_sparse_SigS[iGroup[iNeutron], :]
+        SigP = fuelSigP[0, iGroup[iNeutron]]
+    elif x[iNeutron] < coolLeft or x[iNeutron] > coolRight:    # INPUT - Initial: x[iNeutron] < 0.7 or x[iNeutron] > 2.9
+        SigA = cool_SigC[iGroup[iNeutron]] + cool_SigL[iGroup[iNeutron]]
+        SigS = cool_sparse_SigS[iGroup[iNeutron], :]
+        SigP = 0
+    else:
+        SigA = clad_SigC[iGroup[iNeutron]] + clad_SigL[iGroup[iNeutron]]
+        SigS = clad_sparse_SigS[iGroup[iNeutron], :]
+        SigP = 0
+
+    return SigA, SigS, SigP
+
 """
 ====================================================================================
  perform_collision() function documentation
@@ -209,7 +234,7 @@ Returns:
 """
 #@nb.njit(fastmath=True)
 @nb.njit
-def perform_collision(virtualCollision, absorbed, SigS, SigA, SigP, SigTmax,
+def perform_collision_v1(virtualCollision, absorbed, SigS, SigA, SigP, SigTmax,
                       iGroup, iNeutron, detectS, weight, fuel_chi):
     SigS_sum = np.sum(SigS)
     SigT = SigA + SigS_sum
@@ -229,6 +254,30 @@ def perform_collision(virtualCollision, absorbed, SigS, SigA, SigP, SigTmax,
         iGroup[iNeutron] = np.argmax(np.cumsum(fuel_chi) >= np.random.rand())
 
     return absorbed, virtualCollision, iGroup, weight, detectS
+
+@nb.njit
+def perform_collision(virtualCollision, absorbed, 
+                      SigS, SigA, SigP, SigTmax,
+                      iGroup, iNeutron, detectS, 
+                      weight, fuel_chi):
+    SigS_sum = np.sum(SigS)
+    SigT = SigA + SigS_sum
+    SigV = SigTmax[iGroup[iNeutron]] - SigT
+
+    if SigV / SigTmax[iGroup[iNeutron]] >= np.random.rand():
+        virtualCollision = True
+    else:
+        virtualCollision = False
+
+        if SigS_sum / SigT >= np.random.rand():
+            detectS[iGroup[iNeutron]] += weight[iNeutron] / SigS_sum
+            iGroup[iNeutron] = np.argmax(np.cumsum(SigS) / SigS_sum >= np.random.rand())
+        else:
+            absorbed = True
+            weight[iNeutron] *= SigP / SigA
+            iGroup[iNeutron] = np.argmax(np.cumsum(fuel_chi) >= np.random.rand())
+
+    return virtualCollision, absorbed, iGroup, weight, detectS
 
 """
 =====================================================================
@@ -428,7 +477,7 @@ def main():
     #--------------------------------------------------------------------------
     # Path to macroscopic cross section data:
     # (Assuming the corresponding data files are available and accessible)
-    macro_xs_path = '..//02.Macro.XS.421g'
+    #macro_xs_path = '..//02.Macro.XS.421g'
 
     # Fill the structures fuel, clad, and cool with the cross-section data
     fuel = hdf2dict('macro421_UO2_03__900K.h5')  # INPUT
@@ -511,11 +560,26 @@ def main():
                 x, y = move_neutron(x, y, iNeutron, pitch, freePath, dirX, dirY)
 
                 # Find the total and scattering cross sections                    
-                SigA, SigS, SigP = calculate_cross_sections(fuelLeft, fuelRight, coolLeft, coolRight, x, iNeutron, iGroup, fuel, cool, clad)
-                
+                #SigA, SigS, SigP = calculate_cross_sections(fuelLeft, fuelRight, coolLeft, coolRight, x, iNeutron, iGroup, fuel, cool, clad)
+                SigA, SigS, SigP = calculate_cross_sections_by_region(fuelLeft, fuelRight, coolLeft, coolRight,
+                                                                    x, iNeutron, iGroup,
+                                                                    fuel['SigF'], fuel['SigC'], fuel['SigL'], fuel['SigP'],
+                                                                    fuel["sigS_G"]["sparse_SigS[0]"],
+                                                                    cool['SigC'],  cool['SigL'], 
+                                                                    cool["sigS_G"]["sparse_SigS[0]"],
+                                                                    clad['SigC'], clad['SigL'],
+                                                                    clad["sigS_G"]["sparse_SigS[0]"]
+                                                                    )
+
                 # Sample the type of the collision: virtual (do nothing) or real
-                absorbed, virtualCollision, iGroup, weight, detectS = perform_collision(virtualCollision, absorbed, SigS, SigA, SigP, 
-                                                                                    SigTmax, iGroup, iNeutron, detectS, weight, fuel["chi"])
+                #absorbed, virtualCollision, iGroup, weight, detectS = pc_v1(absorbed, SigS, SigA, SigP, 
+                #                                                                    SigTmax, iGroup, iNeutron, detectS, weight, fuel["chi"])
+                virtualCollision, absorbed, iGroup, weight, detectS = perform_collision(virtualCollision, absorbed, 
+                                                                                        SigS, SigA, SigP, SigTmax,
+                                                                                        iGroup, iNeutron, detectS, 
+                                                                                        weight, fuel['chi'])
+                
+            #print("virtualCollision =", virtualCollision)
             # End of neutron random walk cycle: from emission to absorption
         # End of loop over neutrons
         #-------------------------------------------------------------------------------------------
@@ -537,6 +601,8 @@ def main():
         calculate_keff_cycle(iCycle, numCycles_inactive, numCycles_active, weight, weight0, numNeutrons, keff_active_cycle, keff_expected, sigma_keff)
 
         # End of main (power) iteration
+
+
 
     # Calculate the elapsed time
     elapsed_time = t.time() - start_time
