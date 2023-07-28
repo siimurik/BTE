@@ -140,7 +140,7 @@ def main():
     x = np.zeros(numNeutrons_born * 2)
     y = np.zeros(numNeutrons_born * 2)
     weight = np.ones(numNeutrons_born * 2)
-    iGroup = np.ones(numNeutrons_born * 2, dtype=int)
+    iGroup = np.ones(numNeutrons_born * 2, dtype=np.int64)
 
     #--------------------------------------------------------------------------
     # Neutrons are assumed born randomly distributed in the cell with weight 1
