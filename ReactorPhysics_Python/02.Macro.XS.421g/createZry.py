@@ -531,8 +531,15 @@ def interpSigS(jLgn, element, temp, Sig0):
             nNonZeros = tmp1.shape[1]
             tmp2 = np.zeros(nNonZeros)
             for i in range(nNonZeros):
-                log10sig0 = min(10, max(0, np.log10(Sig0[ifrom[i]])))
-                tmp2[i] = np.interp(np.log10(log10sig0), np.log10(s_sig0), tmp1[:, i])
+                # NumPy Method
+                #log10sig0 = min(10, max(0, np.log10(Sig0[ifrom[i]])))
+                #tmp2[i] = np.interp(np.log10(log10sig0), np.log10(s_sig0), tmp1[:, i])
+                
+                # SciPy method
+                log10sig0 = np.log10(Sig0[ifrom[i]])
+                log10sig0 = min(1, max(0, log10sig0))
+                interp_func = sp.interpolate.interp1d(np.log10(s_sig0), tmp1[:, i])
+                tmp2[i] = interp_func(log10sig0)
 
             sigS = sp.sparse.coo_matrix((tmp2, (ifrom, ito)), shape=(ng, ng)).toarray()
 
@@ -864,7 +871,7 @@ def main():
         # Loop over isotopes
         for iIso in range(nIso):
             # Find cross sections for the found sigma-zeros
-            if len(sig0tab[iIso]) == 1:
+            if np.count_nonzero(sig0tab[iIso]) == 1:
                 sigC[iIso, ig] = sigCtab[iIso][0, ig]
                 sigL[iIso, ig] = sigLtab[iIso][0, ig]
             else:
@@ -874,8 +881,17 @@ def main():
                 y_sigC = sigCtab[iIso][:arrayLength, ig]
                 y_sigL = sigLtab[iIso][:arrayLength, ig]
 
-                temp_sigC = np.interp(log10sig0, x, y_sigC)
-                temp_sigL = np.interp(log10sig0, x, y_sigL)
+                # NumPy approach
+                #temp_sigC = np.interp(log10sig0, x, y_sigC)
+                #temp_sigL = np.interp(log10sig0, x, y_sigL)
+
+                # SciPy approach
+                interp_sigC = sp.interpolate.interp1d(x, y_sigC)
+                interp_sigL = sp.interpolate.interp1d(x, y_sigL)
+                #
+                temp_sigC = interp_sigC(log10sig0)
+                temp_sigL = interp_sigL(log10sig0)
+
                 if np.isnan(temp_sigC) or np.isnan(temp_sigL):
                     # If any of the interpolated values is NaN, replace the entire row with non-zero elements
                     nonzero_indices = np.nonzero(sigCtab[iIso][:arrayLength, ig])
@@ -931,6 +947,54 @@ def main():
 
     # Change the units of number density from 1/(barn*cm) to 1/cm2
     Zry['numDen'] = Zry['numDen']*1e24
+
+    #------------------------------------------------------------------
+    # Round the data according to the initial accuracy of the ENDF data
+    nRows = Zry["numDen"].shape[0]
+    for i in range(nRows):
+        Zry["numDen"][i] = "%12.5e" % Zry["numDen"][i]
+
+    num_rows, num_cols = Zry["sig0"].shape
+    for i in range(num_rows):
+        for j in range(num_cols):
+            Zry["sig0"][i, j] = "%13.6e" % Zry["sig0"][i, j]
+
+    nRows = Zry["SigC"].shape[0]
+    for i in range(nRows):
+        Zry["SigC"][i] = "%13.6e" % Zry["SigC"][i]
+
+    #nRows = Zry["SigL"].shape[0]
+    #for i in range(nRows):
+    #    Zry["SigL"][i] = "%13.6e" % Zry["SigL"][i]
+
+    #nRows = Zry["SigF"].shape[0]
+    #for i in range(nRows):
+    #    Zry["SigF"][i] = "%13.6e" % Zry["SigF"][i]
+
+    #num_rows, num_cols = Zry["SigP"].shape
+    #for i in range(num_rows):
+    #    for j in range(num_cols):
+    #        Zry["SigP"][i, j] = "%13.6e" % Zry["SigP"][i, j]    
+
+    num_rows, num_cols = Zry["Sig2"].shape
+    for i in range(num_rows):
+        for j in range(num_cols):
+            Zry["Sig2"][i, j] = "%13.6e" % Zry["Sig2"][i, j]   
+
+    nRows = Zry["SigT"].shape[0]
+    for i in range(nRows):
+        Zry["SigT"][i] = "%13.6e" % Zry["SigT"][i]
+
+    num_rows, num_cols = Zry["SigS"]["SigS[0]"].shape
+    for k in range(len(Zry["SigS"].keys())):
+        for i in range(num_rows):
+            for j in range(num_cols):
+                Zry["SigS"][f"SigS[{k}]"][i, j] = "%13.6e" % Zry["SigS"][f"SigS[{k}]"][i, j]  
+
+    # nRows = Zry["chi"].shape[0]
+    # for i in range(nRows):
+    #     Zry["chi"][i] = "%13.6e" % Zry["chi"][i]
+    #------------------------------------------------------------------
 
     # Finally create the file with macroscopic cross sections
     writeMacroXS(Zry, matName)

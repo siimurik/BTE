@@ -531,9 +531,16 @@ def interpSigS(jLgn, element, temp, Sig0):
             nNonZeros = tmp1.shape[1]
             tmp2 = np.zeros(nNonZeros)
             for i in range(nNonZeros):
-                log10sig0 = min(10, max(0, np.log10(Sig0[ifrom[i]])))
-                tmp2[i] = np.interp(np.log10(log10sig0), np.log10(s_sig0), tmp1[:, i])
-
+                # NumPy method
+                #log10sig0 = min(10, max(0, np.log10(Sig0[ifrom[i]])))
+                #tmp2[i] = np.interp(np.log10(log10sig0), np.log10(s_sig0), tmp1[:, i])
+                
+                # SciPy method
+                log10sig0 = np.log10(Sig0[ifrom[i]])
+                log10sig0 = min(1, max(0, log10sig0))
+                interp_func = sp.interpolate.interp1d(np.log10(s_sig0), tmp1[:, i], kind='linear')
+                tmp2[i] = interp_func(log10sig0)
+            
             sigS = sp.sparse.coo_matrix((tmp2, (ifrom, ito)), shape=(ng, ng)).toarray()
 
     return sigS
@@ -868,7 +875,8 @@ def main():
         # Loop over isotopes
         for iIso in range(nIso):
             # Find cross sections for the found sigma-zeros
-            if len(sig0tab[iIso]) == 1:
+            #if len(sig0tab[iIso][np.nonzero(sig0tab[iIso])]) == 1:
+            if np.count_nonzero(sig0tab[iIso]) == 1:
                 sigC[iIso, ig] = sigCtab[iIso][0, ig]
                 sigL[iIso, ig] = sigLtab[iIso][0, ig]
                 sigF[iIso, ig] = sigFtab[iIso][0, ig]
@@ -880,9 +888,19 @@ def main():
                 y_sigL = sigLtab[iIso][:arrayLength, ig]
                 y_sigF = sigFtab[iIso][:arrayLength, ig]
 
-                temp_sigC = np.interp(log10sig0, x, y_sigC)
-                temp_sigL = np.interp(log10sig0, x, y_sigL)
-                temp_sigF = np.interp(log10sig0, x, y_sigF)
+                # NumPy approach
+                #temp_sigC = np.interp(log10sig0, x, y_sigC)
+                #temp_sigL = np.interp(log10sig0, x, y_sigL)
+                #temp_sigF = np.interp(log10sig0, x, y_sigF)
+
+                # SciPy approach
+                interp_sigC = sp.interpolate.interp1d(x, y_sigC)
+                interp_sigL = sp.interpolate.interp1d(x, y_sigL)
+                interp_sigF = sp.interpolate.interp1d(x, y_sigF)
+                #
+                temp_sigC = interp_sigC(log10sig0)
+                temp_sigL = interp_sigL(log10sig0)
+                temp_sigF = interp_sigF(log10sig0)
                 
                 if np.isnan(temp_sigC) or np.isnan(temp_sigL) or np.isnan(temp_sigF):
                     # If any of the interpolated values is NaN, replace the entire row with non-zero elements
@@ -948,6 +966,54 @@ def main():
 
     UO2_03["por"] = por*100
     UO2_03["molEnrich"] = molEnrich*100
+
+    #------------------------------------------------------------------
+    # Round the data according to the initial accuracy of the ENDF data
+    nRows = UO2_03["numDen"].shape[0]
+    for i in range(nRows):
+        UO2_03["numDen"][i] = "%12.5e" % UO2_03["numDen"][i]
+
+    num_rows, num_cols = UO2_03["sig0"].shape
+    for i in range(num_rows):
+        for j in range(num_cols):
+            UO2_03["sig0"][i, j] = "%13.6e" % UO2_03["sig0"][i, j]
+
+    nRows = UO2_03["SigC"].shape[0]
+    for i in range(nRows):
+        UO2_03["SigC"][i] = "%13.6e" % UO2_03["SigC"][i]
+
+    nRows = UO2_03["SigL"].shape[0]
+    for i in range(nRows):
+        UO2_03["SigL"][i] = "%13.6e" % UO2_03["SigL"][i]
+
+    nRows = UO2_03["SigF"].shape[0]
+    for i in range(nRows):
+        UO2_03["SigF"][i] = "%13.6e" % UO2_03["SigF"][i]
+
+    num_rows, num_cols = UO2_03["SigP"].shape
+    for i in range(num_rows):
+        for j in range(num_cols):
+            UO2_03["SigP"][i, j] = "%13.6e" % UO2_03["SigP"][i, j]    
+
+    num_rows, num_cols = UO2_03["Sig2"].shape
+    for i in range(num_rows):
+        for j in range(num_cols):
+            UO2_03["Sig2"][i, j] = "%13.6e" % UO2_03["Sig2"][i, j]   
+
+    nRows = UO2_03["SigT"].shape[0]
+    for i in range(nRows):
+        UO2_03["SigT"][i] = "%13.6e" % UO2_03["SigT"][i]
+
+    num_rows, num_cols = UO2_03["SigS"]["SigS[0]"].shape
+    for k in range(len(UO2_03["SigS"].keys())):
+        for i in range(num_rows):
+            for j in range(num_cols):
+                UO2_03["SigS"][f"SigS[{k}]"][i, j] = "%13.6e" % UO2_03["SigS"][f"SigS[{k}]"][i, j]  
+
+    nRows = UO2_03["chi"].shape[0]
+    for i in range(nRows):
+        UO2_03["chi"][i] = "%13.6e" % UO2_03["chi"][i]
+    #------------------------------------------------------------------
 
     # Finally create the file with macroscopic cross sections
     writeMacroXS(UO2_03, matName)
