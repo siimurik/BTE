@@ -243,7 +243,6 @@ def prepareIntoND(*matrices):
 
     return result3D
 
-
 def sigmaZeros(sigTtab, sig0tab, aDen, SigEscape):
     # Number of energy groups
     ng = 421
@@ -304,6 +303,49 @@ def sigmaZeros(sigTtab, sig0tab, aDen, SigEscape):
                 return
 
     return sig0
+
+@njit
+def interp1d_numba(x, y, x_new):
+    """
+    Linear interpolation function using NumPy and Numba.
+    
+    Parameters:
+        x (array-like): 1-D array of x-coordinates of data points.
+        y (array-like): 1-D array of y-coordinates of data points.
+        x_new (array-like): 1-D array of x-coordinates for which to interpolate.
+        
+    Returns:
+        array-like: 1-D array of interpolated values corresponding to x_new.
+    """
+    x = np.asarray(x)
+    y = np.asarray(y)
+    x_new = np.asarray(x_new)
+    
+    # Sorting based on x
+    sorted_indices = np.argsort(x)
+    x_sorted = x[sorted_indices]
+    y_sorted = y[sorted_indices]
+    
+    # Handle boundary cases
+    if x_new < x_sorted[0]:
+        return y_sorted[0]
+    elif x_new > x_sorted[-1]:
+        return y_sorted[-1]
+    
+    # Find indices of the nearest points for interpolation
+    idx = np.searchsorted(x_sorted, x_new, side='right') - 1
+    idx = np.maximum(0, np.minimum(len(x_sorted) - 2, idx))
+    
+    # Compute weights for interpolation
+    x0 = x_sorted[idx]
+    x1 = x_sorted[idx + 1]
+    y0 = y_sorted[idx]
+    y1 = y_sorted[idx + 1]
+    weights = (x_new - x0) / (x1 - x0)
+    
+    # Perform linear interpolation
+    interpolated_values = y0 + (y1 - y0) * weights
+    return interpolated_values
 
 def interpSigS(jLgn, element, temp, Sig0):
     # Number of energy groups
@@ -369,15 +411,20 @@ def interpSigS(jLgn, element, temp, Sig0):
                 #tmp2[i] = np.interp(np.log10(log10sig0), np.log10(s_sig0), tmp1[:, i])
                 
                 # SciPy method
+                #log10sig0 = np.log10(Sig0[ifrom[i]])
+                #log10sig0 = min(1, max(0, log10sig0))
+                #interp_func = sp.interpolate.interp1d(np.log10(s_sig0), tmp1[:, i])
+                #tmp2[i] = interp_func(log10sig0)
+
+                # Numba method
                 log10sig0 = np.log10(Sig0[ifrom[i]])
                 log10sig0 = min(1, max(0, log10sig0))
-                interp_func = sp.interpolate.interp1d(np.log10(s_sig0), tmp1[:, i])
-                tmp2[i] = interp_func(log10sig0)
+                tmp2[i] = interp1d_numba(np.log10(s_sig0), tmp1[:, i], log10sig0)
 
             sigS = sp.sparse.coo_matrix((tmp2, (ifrom, ito)), shape=(ng, ng)).toarray()
 
     return sigS
-"""
+
 @njit
 def numba_sparse_find(matrix):
     rows, cols = [], []
@@ -412,8 +459,13 @@ def numba_prep_interpSigS(jLgn, s_sig0, s_sigS, Sig0):
         nNonZeros = tmp1.shape[1]
         tmp2 = np.zeros(nNonZeros)
         for i in range(nNonZeros):
-            log10sig0 = min(10, max(0, np.log10(Sig0[ifrom[i]])))
-            tmp2[i] = np.interp(np.log10(log10sig0), np.log10(s_sig0), tmp1[:, i])
+            # Numpy method
+            #log10sig0 = min(10, max(0, np.log10(Sig0[ifrom[i]])))
+            #tmp2[i] = np.interp(np.log10(log10sig0), np.log10(s_sig0), tmp1[:, i])
+            # Numba method
+            log10sig0 = np.log10(Sig0[ifrom[i]])
+            log10sig0 = min(1, max(0, log10sig0))
+            tmp2[i] = interp1d_numba(np.log10(s_sig0), tmp1[:, i], log10sig0)
         shape = (421,421)
         sigS = numba_coo_matrix(tmp2, ifrom, ito, shape)
 
@@ -437,7 +489,7 @@ def boosted_interpSigS(jLgn, element, temp, Sig0):
     'B11':  'B_011'
     }
     # Path to microscopic cross section data:
-    micro_XS_path = '../01.Micro.XS.421g'
+    micro_XS_path = '../01.Micro.XS.421g' 
     # Open the HDF5 file based on the element
     filename = f"micro_{elementDict[element]}__{temp}K.h5"
     with h5py.File(micro_XS_path + '/' + filename, 'r') as f:
@@ -467,7 +519,7 @@ def boosted_interpSigS(jLgn, element, temp, Sig0):
         sigS = numba_prep_interpSigS(jLgn, s_sig0, s_sigS, Sig0)
 
     return sigS
-"""
+
 def writeMacroXS(s_struct, matName):
     print(f'Write macroscopic cross sections to the file: {matName}.h5')
     
@@ -568,6 +620,18 @@ def writeMacroXS(s_struct, matName):
 
     print('Done.')
 
+"""
+=========================================================================
+ Documentation for the main() section of the code:
+-------------------------------------------------------------------------
+ Author: Siim Erik Pugal, 2023
+
+ The function reads the MICROscopic group cross sections in the HDF5
+ format and calculates from them the MACROscopic cross sections for water
+ solution of boric acid which is similar to the coolant of the pressurized
+ water reactor.
+=========================================================================
+"""
 def main():
     # number of energy groups
     ng = 421
@@ -701,11 +765,14 @@ def main():
                 #temp_sigL = np.interp(log10sig0, x, y_sigL)
 
                 # SciPy approach
-                interp_sigC = sp.interpolate.interp1d(x, y_sigC)
-                interp_sigL = sp.interpolate.interp1d(x, y_sigL)
-                #
-                temp_sigC = interp_sigC(log10sig0)
-                temp_sigL = interp_sigL(log10sig0)
+                #interp_sigC = sp.interpolate.interp1d(x, y_sigC)
+                #interp_sigL = sp.interpolate.interp1d(x, y_sigL)
+                #temp_sigC = interp_sigC(log10sig0)
+                #temp_sigL = interp_sigL(log10sig0)
+
+                # Numba approach
+                temp_sigC = interp1d_numba(x, y_sigC, log10sig0)
+                temp_sigL = interp1d_numba(x, y_sigL, log10sig0)
 
                 if np.isnan(temp_sigC) or np.isnan(temp_sigL):
                     # If any of the interpolated values is NaN, replace the entire row with non-zero elements
@@ -719,8 +786,8 @@ def main():
     sigS = np.zeros((3, len(H2OB["isoName"]), H2OB["ng"], H2OB["ng"]))
     for i in range(3):
         for j in range(len(H2OB["isoName"])):
-            #sigS[i][j] = boosted_interpSigS(i, H2OB["isoName"][j], H2OB['temp'], H2OB['sig0'][j, :])
-            sigS[i][j] = interpSigS(i, H2OB["isoName"][j], H2OB['temp'], H2OB['sig0'][j, :])
+            sigS[i][j] = boosted_interpSigS(i, H2OB["isoName"][j], H2OB['temp'], H2OB['sig0'][j, :])
+            #sigS[i][j] = interpSigS(i, H2OB["isoName"][j], H2OB['temp'], H2OB['sig0'][j, :])
             
     print('Done.')
 
