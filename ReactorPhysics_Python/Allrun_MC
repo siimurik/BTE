@@ -1,0 +1,23 @@
+#!/bin/bash
+
+# Run scripts in 01.Micro.XS.421g/
+cd 01.Micro.XS.421g/
+python3 downloadGXS.py
+python3 convertGXS2CSV.py
+python3 boostedCSV2H5.py
+cd ../
+
+# Run scripts in 02.Macro.XS.421g/
+cd 02.Macro.XS.421g/
+python3 createH2OB.py
+python3 createUO2_03.py
+python3 createZry.py
+cd ../
+
+# Run script in 06.Monte.Carlo/
+cd 06.Monte.Carlo/
+python3 numba_mc.py
+
+# Open the PDF file
+#xdg-open "ReactorPhysics_Python/06.Monte.Carlo/MC_01_keff.pdf"
+
