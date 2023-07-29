@@ -972,15 +972,15 @@ def interpSigS(jLgn, element, temp, Sig0):
                 #tmp2[i] = np.interp(np.log10(log10sig0), np.log10(s_sig0), tmp1[:, i])
                 
                 # SciPy method
-                #log10sig0 = np.log10(Sig0[ifrom[i]])
-                #log10sig0 = min(1, max(0, log10sig0))
-                #interp_func = sp.interpolate.interp1d(np.log10(s_sig0), tmp1[:, i], kind='linear')
-                #tmp2[i] = interp_func(log10sig0)
-
-                # Numba method
                 log10sig0 = np.log10(Sig0[ifrom[i]])
                 log10sig0 = min(1, max(0, log10sig0))
-                tmp2[i] = interp1d_numba(np.log10(s_sig0), tmp1[:, i], log10sig0)
+                interp_func = sp.interpolate.interp1d(np.log10(s_sig0), tmp1[:, i], kind='linear')
+                tmp2[i] = interp_func(log10sig0)
+
+                # Numba method
+                #log10sig0 = np.log10(Sig0[ifrom[i]])
+                #log10sig0 = min(1, max(0, log10sig0))
+                #tmp2[i] = interp1d_numba(np.log10(s_sig0), tmp1[:, i], log10sig0)
             
             sigS = sp.sparse.coo_matrix((tmp2, (ifrom, ito)), shape=(ng, ng)).toarray()
 
@@ -1404,8 +1404,8 @@ def main():
                                                                 # sigF_O16.shape = (1, 6, 421)
 
     # Initialize sigC, sigL, sigF 
-    sigC = np.zeros((len(aDen), UO2_03['ng'])), 
-    sigL = np.zeros((len(aDen), UO2_03['ng'])), 
+    sigC = np.zeros((len(aDen), UO2_03['ng'])) 
+    sigL = np.zeros((len(aDen), UO2_03['ng'])) 
     sigF = np.zeros((len(aDen), UO2_03['ng']))
 
     for ig in range(UO2_03['ng']):
@@ -1569,4 +1569,8 @@ def main():
 
 
 if __name__ == '__main__':
+    start_time = time.time()
     main()
+    stop_time = time.time()
+    elapsed_time = stop_time - start_time
+    print(f"Elapsed time is {elapsed_time} seconds.")
