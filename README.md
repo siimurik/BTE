@@ -123,7 +123,7 @@ isotopes which is the basis of zircalloy -- fuel cladding material of the
 pressurized water reactor.
 
 ---
-### Step 6. Calculate macroscopic cross sections for dioxide uranium.
+### Step 6. Calculate macroscopic cross sections for uranium dioxide.
 
 Folder: **02.Macro.XS.421g**
 
@@ -131,7 +131,7 @@ Code to complete task: **createUO2_03.py**
 
 Run the code **createUO2_03.py**. The function reads the MICROscopic group cross 
 sections in the HDF5 format and calculates from them the MACROscopic cross 
-sections for dioxide uranium which is the fuel material of the pressurized 
+sections for uranium dioxide which is the fuel material of the pressurized 
 water reactor.
 
 ---
