@@ -184,7 +184,7 @@ can be found under the name **numba_mc.py**.
 Initially this method did not bear much fruit compared to the original **MonteCarloPWR.py**
 code. However, using the functions that were meant for the Cython version of the code, 
 adding the Numba decorator to only those math-heavy functions, a notible increase in the 
-final run time was acieved. 
+final run time was achieved. 
 ```
 =============================================================================
  Without Optimization (Pure Python):
