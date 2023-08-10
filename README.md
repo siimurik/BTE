@@ -204,8 +204,6 @@ final run time was achieved.
 =============================================================================
 ```
 
-![Monte Carlo Simulation](BTE/ReactorPhysics_Python/06.Monte.Carlo/MC_01_keff.png)
-
 ---
 ## OLD/DEPRECATED NOTES:
 # Current progress (MATLAB -> Python):
