@@ -1,14 +1,64 @@
 import os
 import h5py
-import numba
-from numba import jit, prange
+from numba import jit
 import numpy as np
-import pandas as pd
 import scipy.sparse as sparse
-from scipy.sparse import find
 
+@jit(nopython=True)
+def numba_sparse_matrix(data, rows, cols, nrows, ncols):
+    """
+    ====================================================
+        Function documentation: numba_sparse_matrix()
+    ====================================================
+    This function is a NumPy+Numba version of the SciPy
+    function scipy.sparse.coo_matrix().toarray()
+    ====================================================
+    """
+    dense_matrix = np.zeros((nrows, ncols))
+
+    for i in range(len(data)):
+        row = rows[i]
+        col = cols[i]
+        value = data[i]
+        dense_matrix[row, col] = value
+
+    return dense_matrix
+
+@jit(nopython=True)
+def numba_find(arr):
+    """
+    ====================================================
+        Function documentation: numba_find()
+    ----------------------------------------------------
+    This function is a NumPy+Numba version of the SciPy
+    function scipy.sparse.find()
+    ====================================================
+    """
+    nz_rows = []
+    nz_cols = []
+    nz_vals = []
+    
+    for i in range(arr.shape[0]):
+        for j in range(arr.shape[1]):
+            if arr[i, j] != 0:
+                nz_rows.append(i)
+                nz_cols.append(j)
+                nz_vals.append(arr[i, j])
+    
+    return np.array(nz_rows), np.array(nz_cols), np.array(nz_vals)
+
+# Automatic parallelization: DISABLED
 @jit(nopython=True) # parallel = True, fastmath=True
 def extractNwords(n, iRow, m):
+    """
+    =============================================================================
+        Function documentation: extractNwords()
+    -----------------------------------------------------------------------------
+    The function reads 'n' words from row 'iRow' of matrix m and returns them in
+    vector 'a' together with the new row number 'iRowNew', i.e. the row where the
+    last word was read.
+    =============================================================================
+    """
     a = np.empty(n, dtype=np.float64)  # Use a Numpy array directly instead of a list
     k = 0  # counter for filling vector a
     iRowNew = iRow
@@ -28,9 +78,19 @@ def extractNwords(n, iRow, m):
 
     return a, iRowNew
 
-# Atomatic parallelization: DISABLED
+# Automatic parallelization: DISABLED
 @jit(nopython=True) # parallel = True, fastmath=True
 def extract_mf3(mt, ntt, m):
+    """
+    ========================================================================
+        Function documentation: extract_mf3()
+    ------------------------------------------------------------------------ 
+    The function searches matrix m for cross sections sig from file mf=3 for
+    reaction mt and temperature ntt and and returns sig(ng,nSig0), where ng
+    is the number of energy groups and nSig0 is the the number of
+    sigma-zeros.
+    ========================================================================
+    """
     nRow = m.shape[0]  # number of rows
     nTemp = -1  # number of temperatures
     iRowFound = 0
@@ -59,10 +119,19 @@ def extract_mf3(mt, ntt, m):
 
     return sig
 
-
-
 @jit(nopython=True)
 def extract_mf6(mt, ntt, m):
+    """
+    ========================================================================
+        Function documentation: extract_mf6()
+    ------------------------------------------------------------------------ 
+    The function reads cross sections from file 6 for reaction mt and 
+    temperature index ntt from matrix m and returns the 2D cell matrix 
+    sig{nLgn,nSig0}(nonz) with two vectors ifrom(nonz) and ito(nonz), where
+    nLgn is the number of Legendre components, nSig0 is the number of
+    sigma-zeros and nonz is the number of nonzeros..
+    ========================================================================
+    """
     iRow = 0  # row number
     nTemp = -1  # number of temperatures; "-1" for Python indexing; "0" for Matlab indexing
     ifrom = []  # index of group 'from'
@@ -118,6 +187,14 @@ def extract_mf6(mt, ntt, m):
     return ifrom, ito, sigFinal
 
 def main():
+    """
+    ===================================================
+    Start of convertCSV2H5.
+    ---------------------------------------------------
+    Essentially just converts CSV files into HDF5 files
+    for every temperature section in the CSV file.
+    ===================================================
+    """
     csv_directory = "CSV_files" # Specify the directory containing the CSV files
     csv_files = [file for file in os.listdir(csv_directory) if file.endswith('.CSV')] # Get a list of all CSV files in the csv_directory
 
@@ -255,8 +332,11 @@ def main():
                         isn2n = 1
                         sig2_G.create_dataset('ifrom2', data=ifrom2)
                         sig2_G.create_dataset('ito2', data=ito2)
-                        sig2_sparse = sparse.coo_matrix((sig2[0, 0, :], (ifrom2-1, ito2-1)), shape=(ng, ng))
-                        sig2_new = sig2_sparse.toarray()
+                        # SciPy approach
+                        #sig2_sparse = sparse.coo_matrix((sig2[0, 0, :], (ifrom2-1, ito2-1)), shape=(ng, ng))
+                        #sig2_new = sig2_sparse.toarray()
+                        # Numba approach
+                        sig2_new = numba_sparse_matrix(sig2[0, 0, :], ifrom2-1, ito2-1, ng, ng)
                         sig2_G.create_dataset('sig2', data=sig2_new)
                     
                     #============================================================================================
@@ -279,7 +359,11 @@ def main():
                             for ii in range(len(ifromE)):
                                 if ifromE[ii] <= igThresh:
                                     sigE[jLgn, iSig0, ii] = 0         # 6(+1) 5(+1)
-                            sigS[jLgn][iSig0] = sparse.coo_matrix((sigE[jLgn, iSig0, :]+1e-30, (ifromE-1, itoE-1)), shape=(ng, ng))
+                            # SciPy approach
+                            #sigS[jLgn][iSig0] = sparse.coo_matrix((sigE[jLgn, iSig0, :]+1e-30, (ifromE-1, itoE-1)), shape=(ng, ng))
+                            # Numba approach
+                            sigS[jLgn][iSig0] = numba_sparse_matrix(sigE[jLgn, iSig0, :]+1e-30, ifromE-1, itoE-1, ng, ng)
+                            
                             #print(sigS[0][0].toarray())    # To see the first cell
                             # Also just in case you are interesed in 
                             # seeing the dimensions of sigS:
@@ -295,8 +379,10 @@ def main():
                             nLgn = sigI.shape[0]-1
                             for jLgn in range(nLgn+1):
                                 for iSig0 in range(nSig0):
-                                    sigS[jLgn][iSig0] += sparse.coo_matrix((sigI[jLgn, 0]+1e-30, (ifromI-1, itoI-1)), shape=(ng, ng))
-
+                                    # SciPy approach
+                                    #sigS[jLgn][iSig0] += sparse.coo_matrix((sigI[jLgn, 0]+1e-30, (ifromI-1, itoI-1)), shape=(ng, ng))
+                                    # Numba approach
+                                    sigS[jLgn][iSig0] += numba_sparse_matrix(sigI[jLgn, 0]+1e-30, ifromI-1, itoI-1, ng, ng)
                     if isoName[0:11] == 'micro_H_001':
                         print(f'Convert {nameOnly}.CSV to {isoName}.h5: mf=6 mt=222 thermal scattering for hydrogen binded in water')
                         ifromI, itoI, sigI = extract_mf6(222, iTemp, m) # Extract mf=6 mt=222 thermal scattering for hydrogen binded in water
@@ -307,15 +393,21 @@ def main():
                     nLgn = sigI.shape[0] - 1
                     for jLgn in range(nLgn + 1):
                         for iSig0 in range(nSig0):
-                            sigS[jLgn][iSig0] += sparse.coo_matrix((sigI[jLgn, 0]+1e-30, (ifromI-1, itoI-1)), shape=(ng, ng))
-                            #sigS[jLgn][iSig0] = sigS[jLgn][iSig0] + sparse.csr_matrix((sigI[jLgn, 0]+1e-30)*np.ones(len(ifromI)), (ifromI, itoI), shape=(int(ng), int(ng)))
-                    
+                            # SciPy approach
+                            #sigS[jLgn][iSig0] += sparse.coo_matrix((sigI[jLgn, 0]+1e-30, (ifromI-1, itoI-1)), shape=(ng, ng))
+                            ##sigS[jLgn][iSig0] = sigS[jLgn][iSig0] + sparse.csr_matrix((sigI[jLgn, 0]+1e-30)*np.ones(len(ifromI)), (ifromI, itoI), shape=(int(ng), int(ng)))
+                            # Numba approach
+                            sigS[jLgn][iSig0] += numba_sparse_matrix(sigI[jLgn, 0]+1e-30, ifromI-1, itoI-1, ng, ng)
                     sigS_G = hdf.create_group("sigS_G")
                     for jLgn in range(3):
                         for iSig0 in range(nSig0):
-                            ifromS_, itoS_, sigS_ = find(sigS[jLgn][iSig0])
-                            sigS_sparse = sparse.coo_matrix((sigS_, (ifromS_, itoS_)), shape=(ng, ng))
-                            sigS_new = sigS_sparse.toarray()
+                            # SciPy approach
+                            #ifromS_, itoS_, sigS_ = sparse.find(sigS[jLgn][iSig0])
+                            # Numba approach
+                            ifromS_, itoS_, sigS_ = numba_find(sigS[jLgn][iSig0])
+                            #sigS_sparse = sparse.coo_matrix((sigS_, (ifromS_, itoS_)), shape=(ng, ng))
+                            #sigS_new = sigS_sparse.toarray()
+                            sigS_new = numba_sparse_matrix(sigS_, ifromS_, itoS_, ng, ng)
                             sigS_G.create_dataset(f"sigS({jLgn},{iSig0})", data=sigS_new)
                     sigS_G.create_dataset("ifromS", data=ifromS_)
                     sigS_G.create_dataset("itoS", data=itoS_)
@@ -408,7 +500,8 @@ def main():
                     sigT = np.empty((nSig0,ng))
                     for iSig0 in range(nSig0):
                         # Compute the sum of the iSig0th row of sigS (using sparse.toarray() and np.sum())
-                        sigS_sum = np.sum(sigS[0][iSig0].toarray(), axis=1)
+                        #sigS_sum = np.sum(sigS[0][iSig0].toarray(), axis=1)    # SciPy approach
+                        sigS_sum = np.sum(sigS[0][iSig0], axis=1)               # Numba approach
                         # Add sigC(iSig0,:), sigF(iSig0,:), sigL(iSig0,:), and the sum to sigT(iSig0,:)
                         #sigT[iSig0,:] = sigC[iSig0] + sigF[iSig0] + sigL[iSig0] + sigS_sum
                         sigT[iSig0,:] = sigC[iSig0,:] + sigF[iSig0,:] + sigL[iSig0,:] + sigS_sum
@@ -437,7 +530,6 @@ if __name__ == '__main__':
 # sys	0m2.778s
 
 # With numba:
-# real	5m57.630s
-# user	5m55.050s
-# sys	0m2.629s
-
+# real	0m31.808s
+# user	0m30.068s
+# sys	0m2.643s
