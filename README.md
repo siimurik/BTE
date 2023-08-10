@@ -207,7 +207,7 @@ final run time was achieved.
 ---
 ### Results
 
-![alt text](https://github.com/[siimurik]/[BTE]/ReactorPhysics_Python/06.Monte.Carlo/MC_01_keff.png)
+![Monte Carlo Simulation](BTE/ReactorPhysics_Python/06.Monte.Carlo/MC_01_keff.png)
 
 ---
 ## OLD/DEPRECATED NOTES:
