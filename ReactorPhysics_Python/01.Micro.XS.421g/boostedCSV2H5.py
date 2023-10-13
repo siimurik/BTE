@@ -340,13 +340,14 @@ def main():
                         sig2_G.create_dataset('sig2', data=sig2_new)
                     
                     #============================================================================================
-                    # (n,n')
-                    # The notation (n,n') represents a neutron inelastic scattering reaction, where a neutron is 
-                    # scattered by a nucleus, resulting in the emission of a different type of particle or gamma 
-                    # ray. In this notation, the "n" inside the parentheses represents the incident neutron, and 
-                    # the "n'" outside the parentheses represents the neutron that is scattered by the nucleus. 
-                    # This reaction is often used to study the properties of the target nucleus, such as its 
-                    # energy levels and excitation states.
+                    # (n,n0)
+                    # The first "n" represents the incident neutron. This is the neutron that interacts with the 
+                    # target nucleus.The second "n0" represents the outgoing neutron. The "0" indicates that the 
+                    # neutron doesn't undergo any further reactions, i.e., it's scattered elastically without any 
+                    # additional particles being emitted. Elastic scattering is a process in which an incident 
+                    # particle (in this case, a neutron) interacts with a target nucleus, causing it to recoil. 
+                    # After the interaction, both the incident particle and the target nucleus continue to exist, 
+                    # with the incident particle retaining its identity (in this case, it remains a neutron).
                     #============================================================================================
                     igThresh = 95  # last group of thermal energy (e = 4 eV)
                     print(f'Convert {nameOnly}.CSV to {isoName}.h5: mf=6 mt=2 elastic scattering')
