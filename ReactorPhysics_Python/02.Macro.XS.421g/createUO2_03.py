@@ -9,29 +9,27 @@ from pyXSteam.XSteam import XSteam
 
 def initPWR_like():
     """
+    ==============================================================================
     Function Documentation: initPWR_like()
-
+    ------------------------------------------------------------------------------
     Description:
     This Python function creates and initializes a hierarchical data structure 
     stored in an HDF5 file that represents a simplified Pressurized Water Reactor 
     (PWR)-like nuclear fuel assembly model. The data structure contains various 
     geometric, thermal, and hydraulic parameters required for reactor simulations.
-
-    Parameters:
-    This function does not have any input parameters.
-
+    ------------------------------------------------------------------------------
     Returns:
     The function doesn't return any values. Instead, it creates an HDF5 file named 
     "initPWR_like.h5" and populates it with the necessary data.
-
+    ------------------------------------------------------------------------------
     Usage:
     initPWR_like()
-
+    ------------------------------------------------------------------------------
     Data Structure and Contents:
     The HDF5 file contains three main groups: "g", "th", and "fr," which store 
     information about geometry, thermal parameters, and fuel rod parameters, 
     respectively. The contents of each group are as follows:
-
+    ------------------------------------------------------------------------------
     Group "g" (Geometry):
         - "nz" (Dataset): Number of axial nodes (scalar integer)
         - "fuel" (Group): Contains fuel rod geometry and nodalization parameters
@@ -48,12 +46,12 @@ def initPWR_like():
         - "dz0" (Dataset): Height of each axial node (array of length "nz" containing 
           scalar floats)
         - "dzGasPlenum" (Dataset): Height of the fuel rod gas plenum (scalar float)
-
+    ------------------------------------------------------------------------------
     Group "th" (Thermal Parameters):
         - "qLHGR0" (Dataset): Initial average linear heat generation rate in fuel 
           (2D array of size 2x3, containing time (s) and linear heat generation 
           rate (W/m))
-
+    ------------------------------------------------------------------------------
     Group "fr" (Fuel Rod Parameters):
         - "clad" (Group): Contains parameters related to the clad
             * "fastFlux" (Dataset): Initial fast neutron flux in the clad (2D 
@@ -70,11 +68,12 @@ def initPWR_like():
         - "fuel" (Group): Contains parameters related to the fuel itself
             * "por" (Dataset): Initial fuel porosity (-) (2D array of size nz x nr, 
               containing scalar floats)
-
+    ------------------------------------------------------------------------------
     Note:
     The function uses the h5py library to create and write data into the HDF5 file. 
     The data is organized into groups and datasets within the file, making it easier 
     to store and access different parameters of the PWR-like nuclear fuel assembly.
+    ==============================================================================
     """
     with h5py.File("..//00.Lib/initPWR_like.h5", "w") as hdf:
         g  = hdf.create_group("g")
@@ -240,8 +239,9 @@ def initPWR_like():
 
 def readPWR_like(input_keyword):
     """
+    ================================================================================
     Function Documentation: readPWR_like(input_keyword)
-
+    --------------------------------------------------------------------------------
     Description:
     This Python function reads data from an existing HDF5 file representing
     a simplified Pressurized Water Reactor (PWR)-like nuclear fuel assembly 
@@ -249,15 +249,13 @@ def readPWR_like(input_keyword):
     nested structures. The function takes an input keyword corresponding to 
     a specific group in the HDF5 file and retrieves the associated datasets 
     or nested structures within that group.
-
+    --------------------------------------------------------------------------------
     Parameters:
-
         - input_keyword (str): The input keyword corresponding to a specific 
         group in the HDF5 file. It can take one of the following values: "fr" 
         (Fuel Rod Parameters), "g" (Geometry), or "th" (Thermal Parameters).
-
+    --------------------------------------------------------------------------------
     Returns:
-
         - data (dict): A dictionary containing the retrieved data. The 
           structure of the dictionary depends on the group specified 
           by the input_keyword parameter. If the group contains simple 
@@ -265,32 +263,32 @@ def readPWR_like(input_keyword):
           dictionary. If the group contains nested structures (subgroups), 
           the corresponding nested dictionaries will be created and 
           stored under their parent dataset names.
-
+    --------------------------------------------------------------------------------
     Data Retrieval:
     The function reads the specified HDF5 file named "initPWR_like.h5" and 
     accesses the group defined by the input_keyword parameter. It then 
     iterates over the datasets within the group and performs the following 
     actions:
-
         - For simple datasets (1D arrays), the data is read as NumPy arrays and
           stored directly in the data dictionary under their dataset names.
         - For datasets representing nested structures (subgroups), the function 
           reads each subgroup's fields, creates a dictionary to store the struct 
           fields, and then stores the struct data in the main data dictionary 
           under their parent dataset names.
-
+    --------------------------------------------------------------------------------
     Example Usage:
     # Read the Fuel Rod Parameters from the HDF5 file
     fuel_rod_params = readPWR_like("fr")
     # Access the Fast Flux in the Clad
     fast_flux_in_clad = fuel_rod_params["clad"]["fastFlux"]
-
+    --------------------------------------------------------------------------------
     Note:
     The function uses the h5py library to read data from the HDF5 file. It provides 
     a convenient way to access different datasets and nested structures within the 
     file based on the specified input keyword. The data is returned in a Python 
     dictionary, making it easy to retrieve specific information for further analysis 
     or use in reactor simulations.
+    ================================================================================
     """
     # Define the mapping of input keyword to group name
     group_mapping = {
@@ -335,8 +333,9 @@ def readPWR_like(input_keyword):
 
 def matpro():
     """
+    ============================================================================
     Function Documentation: matpro()
-
+    ----------------------------------------------------------------------------
     Description:
     This Python function creates an HDF5 file named "matprop_UO2_zircaloy.h5" 
     and stores material property data for UO2 (Uranium Dioxide) fuel, Zircaloy 
@@ -345,22 +344,27 @@ def matpro():
     modulus, Poisson's ratio, swelling rate, thermal creep rate, and additional 
     auxiliary functions. The material property data is either provided as 
     constant values or as formulas representing temperature-dependent properties.
-
+    ----------------------------------------------------------------------------
     Materials and Properties:
         1. UO2 Fuel:
             - Density (rho): Constant value (kg/m³).
             - Specific Heat (cp): Formula as a function of temperature (J/kg-K).
-            - Thermal Conductivity (k): Formula as a function of temperature and burnup (W/m-K).
+            - Thermal Conductivity (k): Formula as a function of temperature and 
+              burnup (W/m-K).
             - Thermal Expansion (thExp): Formula as a function of temperature (m/m).
-            - Young's Modulus (E): Formula as a function of temperature and porosity (MPa).
+            - Young's Modulus (E): Formula as a function of temperature and 
+              porosity (MPa).
             - Poisson's Ratio (nu): Constant value (-).
             - Swelling Rate (swelRate): Formula as a function of dF/dt (1/s).
-            - Psi Function (psi): Auxiliary function for gas mixture gas conductivity calculation.
-
+            - Psi Function (psi): Auxiliary function for gas mixture gas 
+              conductivity calculation. 
+    ----------------------------------------------------------------------------
         2. Gas Gap (He, Xe, Kr):
-            - Thermal Conductivity (kHe, kXe, kKr): Formulas as a function of temperature (W/m-K).
-            - Gas Mixture Gas Conductivity Function (kGasMixFun): Formula for calculating gas mixture thermal conductivity (-).
-
+            - Thermal Conductivity (kHe, kXe, kKr): Formulas as a function of 
+              temperature (W/m-K).
+            - Gas Mixture Gas Conductivity Function (kGasMixFun): Formula for 
+              calculating gas mixture thermal conductivity (-).
+    ----------------------------------------------------------------------------
         3. Zircaloy Cladding:
             - Density (rho): Constant value (kg/m³).
             - Specific Heat (cp): Formula as a function of temperature (J/kg-K).
@@ -368,20 +372,22 @@ def matpro():
             - Thermal Expansion (thExp): Formula as a function of temperature (m/m).
             - Young's Modulus (E): Formula as a function of temperature (MPa).
             - Poisson's Ratio (nu): Constant value (-).
-            - Thermal Creep Rate (creepRate): Formula as a function of stress and temperature (1/s).
+            - Thermal Creep Rate (creepRate): Formula as a function of stress and 
+              temperature (1/s).
             - Strength Coefficient (K): Formula as a function of temperature (MATPRO).
-            - Strain Rate Sensitivity Exponent (m): Formula as a function of temperature (MATPRO).
+            - Strain Rate Sensitivity Exponent (m): Formula as a function of 
+              temperature (MATPRO).
             - Strain Hardening Exponent (n): Formula as a function of temperature (MATPRO).
             - Burst Stress (sigB): Formula as a function of temperature (MATPRO).
-
+    ----------------------------------------------------------------------------
     HDF5 File Structure:
     The function creates an HDF5 file and organizes the material properties 
     into groups named "fuel," "gap," and "clad." Each group contains attributes 
     and datasets for specific material properties.
-
+    ----------------------------------------------------------------------------
     Usage:
     matpro()
-
+    ----------------------------------------------------------------------------
     Note:
     This function is used to generate an HDF5 file containing material property 
     data for UO2 fuel, Zircaloy cladding, and gas gap. The material properties 
@@ -389,6 +395,7 @@ def matpro():
     related to nuclear fuel assemblies and reactors. The temperature-dependent 
     properties are represented as functions, allowing for flexibility in modeling 
     materials at different operating conditions.
+    ============================================================================
     """
     with h5py.File("..//00.Lib/matprop_UO2_zircaloy.h5", "w") as hdf:
         # UO2: theoretical density (kg/m3) MATPRO(2003) p. 2-56
@@ -533,8 +540,9 @@ def matpro():
 
 def read_matpro(input_keyword):
     """
+    =================================================================
     Function Documentation: read_matpro(input_keyword)
-
+    -----------------------------------------------------------------
     Description:
     This Python function reads material property data from the 
     "matprop_UO2_zircaloy.h5" HDF5 file based on the provided 
@@ -546,29 +554,29 @@ def read_matpro(input_keyword):
     rate, thermal creep rate, and additional auxiliary functions. 
     The function returns a dictionary containing the material 
     property data for the specified group.
-
+    -----------------------------------------------------------------
     Parameters:
         - input_keyword: A string representing the keyword for selecting 
           the material group. It should be one of the following values: 
           "clad" (Zircaloy cladding), "fuel" (UO2 fuel), or 
           "gap" (gas gap properties).
-
+    -----------------------------------------------------------------
     HDF5 File Structure:
     The function accesses the "matprop_UO2_zircaloy.h5" file and reads the 
     material property data from the specified group (based on the input 
     keyword) using the HDF5 library.
-
+    -----------------------------------------------------------------
     Return Value:
     The function returns a dictionary named "data" containing material 
     property data for the specified group. The dictionary keys are the 
     attribute and dataset names, and the corresponding values are the 
     material property values (either constant values or numpy arrays for 
     temperature-dependent properties).
-
+    -----------------------------------------------------------------
     Example:
     # Reading material properties for UO2 fuel
     fuel_data = read_matpro("fuel")
-
+    -----------------------------------------------------------------
     Note:
     This function is used to retrieve material property data for UO2 fuel, 
     Zircaloy cladding, and gas gap properties from the "matprop_UO2_zircaloy.h5" 
@@ -577,6 +585,7 @@ def read_matpro(input_keyword):
     and reactors. The function uses the "input_keyword" parameter to select the 
     desired material group and returns the relevant data in a dictionary format 
     for easy access and utilization in subsequent code.
+    =================================================================
     """
     # Define the mapping of input keyword to group name
     group_mapping = {
@@ -604,30 +613,31 @@ def read_matpro(input_keyword):
     
 def prep2D(group):
     """
+    =======================================================================
     Function Documentation: prep2D(group)
-
+    -----------------------------------------------------------------------
     Description:
     The Python function prep2D(group) is designed to extract and prepare 
     2D data from an HDF5 group and its subgroups. The function recursively 
     traverses the group and its subgroups to locate datasets containing 
     2D arrays. It collects all the 2D array data found in these datasets 
     and returns them as a single 2D numpy array.
-
+    -----------------------------------------------------------------------
     Parameters:
         - group: An HDF5 group object representing the starting group from 
           which the function begins the search for 2D datasets.
-
+    -----------------------------------------------------------------------
     Return Value:
     The function returns a 2D numpy array containing the collected data from 
     all 2D datasets found within the given HDF5 group and its subgroups.
-
+    -----------------------------------------------------------------------
     HDF5 File Structure:
     The function traverses the provided HDF5 group and its subgroups, 
     looking for datasets that contain 2D arrays.
-
+    -----------------------------------------------------------------------
     Usage:
     result_data = prep2D(group)
-
+    -----------------------------------------------------------------------
     Note:
     The prep2D() function is useful when dealing with complex HDF5 file 
     structures containing nested groups and datasets. It allows you to 
@@ -636,6 +646,7 @@ def prep2D(group):
     The function is particularly beneficial for scientific data stored 
     in HDF5 format, where multidimensional arrays are common, such as in 
     simulation data, experimental results, or image data.
+    =======================================================================
     """
     subgroups_data = []
 
