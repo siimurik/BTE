@@ -8,6 +8,73 @@ from numba import njit
 from pyXSteam.XSteam import XSteam
 
 def initPWR_like():
+    """
+    ==============================================================================
+    Function Documentation: initPWR_like()
+    ------------------------------------------------------------------------------
+    Description:
+    This Python function creates and initializes a hierarchical data structure 
+    stored in an HDF5 file that represents a simplified Pressurized Water Reactor 
+    (PWR)-like nuclear fuel assembly model. The data structure contains various 
+    geometric, thermal, and hydraulic parameters required for reactor simulations.
+    ------------------------------------------------------------------------------
+    Returns:
+    The function doesn't return any values. Instead, it creates an HDF5 file named 
+    "initPWR_like.h5" and populates it with the necessary data.
+    ------------------------------------------------------------------------------
+    Usage:
+    initPWR_like()
+    ------------------------------------------------------------------------------
+    Data Structure and Contents:
+    The HDF5 file contains three main groups: "g", "th", and "fr," which store 
+    information about geometry, thermal parameters, and fuel rod parameters, 
+    respectively. The contents of each group are as follows:
+    ------------------------------------------------------------------------------
+    Group "g" (Geometry):
+        - "nz" (Dataset): Number of axial nodes (scalar integer)
+        - "fuel" (Group): Contains fuel rod geometry and nodalization parameters
+            * "rIn" (Dataset): Inner fuel radius (scalar float)
+            * "rOut" (Dataset): Outer fuel radius (scalar float)
+            * "nr" (Dataset): Number of radial nodes in fuel (scalar integer)
+        - "clad" (Group): Contains clad geometry parameters
+            * "rIn" (Dataset): Inner clad radius (scalar float)
+            * "rOut" (Dataset): Outer clad radius (scalar float)
+            * "nr" (Dataset): Number of radial nodes in clad (scalar integer)
+        - "cool" (Group): Contains coolant channel geometry parameters
+            * "pitch" (Dataset): Square unit cell pitch (scalar float)
+            * "rOut" (Dataset): Equivalent radius of the unit cell (scalar float)
+        - "dz0" (Dataset): Height of each axial node (array of length "nz" containing 
+          scalar floats)
+        - "dzGasPlenum" (Dataset): Height of the fuel rod gas plenum (scalar float)
+    ------------------------------------------------------------------------------
+    Group "th" (Thermal Parameters):
+        - "qLHGR0" (Dataset): Initial average linear heat generation rate in fuel 
+          (2D array of size 2x3, containing time (s) and linear heat generation 
+          rate (W/m))
+    ------------------------------------------------------------------------------
+    Group "fr" (Fuel Rod Parameters):
+        - "clad" (Group): Contains parameters related to the clad
+            * "fastFlux" (Dataset): Initial fast neutron flux in the clad (2D 
+              array of size 2x3, containing time (s) and fast flux (1/cm2-s))
+        - "fuel" (Group): Contains parameters related to the fuel
+            * "FGR" (Dataset): Initial fission gas release (-) in fuel (2D array 
+              of size 2x3, containing time (s) and fission gas release)
+        - "ingas" (Group): Contains parameters related to the gas inside the fuel rod
+            * "Tplenum" (Dataset): Fuel rod gas plenum temperature (K) (scalar float)
+            * "p0" (Dataset): As-fabricated helium pressure inside the fuel rod (MPa)
+              (scalar float)
+            * "muHe0" (Dataset): As-fabricated gas amount inside the fuel rod (mole) 
+              (scalar float)
+        - "fuel" (Group): Contains parameters related to the fuel itself
+            * "por" (Dataset): Initial fuel porosity (-) (2D array of size nz x nr, 
+              containing scalar floats)
+    ------------------------------------------------------------------------------
+    Note:
+    The function uses the h5py library to create and write data into the HDF5 file. 
+    The data is organized into groups and datasets within the file, making it easier 
+    to store and access different parameters of the PWR-like nuclear fuel assembly.
+    ==============================================================================
+    """
     #global global_g
     with h5py.File("..//00.Lib/initPWR_like.h5", "w") as hdf:
         g  = hdf.create_group("g")
@@ -175,6 +242,58 @@ def initPWR_like():
         th.create_dataset("p", data = th_p)
 
 def readPWR_like(input_keyword):
+    """
+    ================================================================================
+    Function Documentation: readPWR_like(input_keyword)
+    --------------------------------------------------------------------------------
+    Description:
+    This Python function reads data from an existing HDF5 file representing
+    a simplified Pressurized Water Reactor (PWR)-like nuclear fuel assembly 
+    model. The data is organized into groups, datasets, and, in some cases, 
+    nested structures. The function takes an input keyword corresponding to 
+    a specific group in the HDF5 file and retrieves the associated datasets 
+    or nested structures within that group.
+    --------------------------------------------------------------------------------
+    Parameters:
+        - input_keyword (str): The input keyword corresponding to a specific 
+        group in the HDF5 file. It can take one of the following values: "fr" 
+        (Fuel Rod Parameters), "g" (Geometry), or "th" (Thermal Parameters).
+    --------------------------------------------------------------------------------
+    Returns:
+        - data (dict): A dictionary containing the retrieved data. The 
+          structure of the dictionary depends on the group specified 
+          by the input_keyword parameter. If the group contains simple 
+          datasets (1D arrays), they will be directly stored in the 
+          dictionary. If the group contains nested structures (subgroups), 
+          the corresponding nested dictionaries will be created and 
+          stored under their parent dataset names.
+    --------------------------------------------------------------------------------
+    Data Retrieval:
+    The function reads the specified HDF5 file named "initPWR_like.h5" and 
+    accesses the group defined by the input_keyword parameter. It then 
+    iterates over the datasets within the group and performs the following 
+    actions:
+        - For simple datasets (1D arrays), the data is read as NumPy arrays and
+          stored directly in the data dictionary under their dataset names.
+        - For datasets representing nested structures (subgroups), the function 
+          reads each subgroup's fields, creates a dictionary to store the struct 
+          fields, and then stores the struct data in the main data dictionary 
+          under their parent dataset names.
+    --------------------------------------------------------------------------------
+    Example Usage:
+    # Read the Fuel Rod Parameters from the HDF5 file
+    fuel_rod_params = readPWR_like("fr")
+    # Access the Fast Flux in the Clad
+    fast_flux_in_clad = fuel_rod_params["clad"]["fastFlux"]
+    --------------------------------------------------------------------------------
+    Note:
+    The function uses the h5py library to read data from the HDF5 file. It provides 
+    a convenient way to access different datasets and nested structures within the 
+    file based on the specified input keyword. The data is returned in a Python 
+    dictionary, making it easy to retrieve specific information for further analysis 
+    or use in reactor simulations.
+    ================================================================================
+    """
     # Define the mapping of input keyword to group name
     group_mapping = {
         "fr": "fr",
@@ -217,6 +336,42 @@ def readPWR_like(input_keyword):
     return data
 
 def prep2D(group):
+    """
+    =======================================================================
+    Function Documentation: prep2D(group)
+    -----------------------------------------------------------------------
+    Description:
+    The Python function prep2D(group) is designed to extract and prepare 
+    2D data from an HDF5 group and its subgroups. The function recursively 
+    traverses the group and its subgroups to locate datasets containing 
+    2D arrays. It collects all the 2D array data found in these datasets 
+    and returns them as a single 2D numpy array.
+    -----------------------------------------------------------------------
+    Parameters:
+        - group: An HDF5 group object representing the starting group from 
+          which the function begins the search for 2D datasets.
+    -----------------------------------------------------------------------
+    Return Value:
+    The function returns a 2D numpy array containing the collected data from 
+    all 2D datasets found within the given HDF5 group and its subgroups.
+    -----------------------------------------------------------------------
+    HDF5 File Structure:
+    The function traverses the provided HDF5 group and its subgroups, 
+    looking for datasets that contain 2D arrays.
+    -----------------------------------------------------------------------
+    Usage:
+    result_data = prep2D(group)
+    -----------------------------------------------------------------------
+    Note:
+    The prep2D() function is useful when dealing with complex HDF5 file 
+    structures containing nested groups and datasets. It allows you to 
+    efficiently extract and organize 2D data from various datasets in a 
+    single numpy array for further analysis, visualization, or processing. 
+    The function is particularly beneficial for scientific data stored 
+    in HDF5 format, where multidimensional arrays are common, such as in 
+    simulation data, experimental results, or image data.
+    =======================================================================
+    """
     subgroups_data = []
 
     def get_data(name, obj):
@@ -229,6 +384,39 @@ def prep2D(group):
 
 #@njit
 def prepareIntoND(*matrices):
+    """
+    ======================================================================
+    Function Documentation: prepareIntoND(*matrices)
+    ----------------------------------------------------------------------
+    Description:
+    The Python function prepareIntoND(*matrices) is designed to prepare 2D 
+    matrices by stacking them into a 3D array. The function takes multiple 
+    2D matrices as input and combines them into a single 3D numpy array. 
+    It pads the 2D matrices with zeros as necessary to create a uniform 
+    3D array.
+    ----------------------------------------------------------------------
+    Parameters:
+        - matrices: A variable number of 2D numpy arrays (matrices) to be 
+          combined into a 3D array. The function can take one or more 2D 
+          matrices as input.
+    ----------------------------------------------------------------------
+    Return Value:
+    The function returns a 3D numpy array containing the input 2D matrices 
+    combined along the first axis. The resulting 3D array will have a shape 
+    of (num_cells, max(num_rows_per_cell), num_cols).
+    ----------------------------------------------------------------------
+    Usage:
+    result_3d_array = prepareIntoND(matrix1, matrix2, matrix3, ...)
+    ----------------------------------------------------------------------
+    Note:
+    The prepareIntoND() function is particularly useful when dealing with 
+    data that needs to be organized in a 3D array format. It allows for easy 
+    combination of multiple 2D matrices of different sizes into a uniform 3D 
+    structure. The function pads the matrices with zeros as needed to ensure 
+    that the 3D array is consistent and can be used for further calculations 
+    or processing.
+    ======================================================================
+    """
     num_cells = len(matrices)
     num_rows_per_cell = [matrix.shape[0] for matrix in matrices]
     num_cols = matrices[0].shape[1]
@@ -244,6 +432,68 @@ def prepareIntoND(*matrices):
     return result3D
 
 def sigmaZeros(sigTtab, sig0tab, aDen, SigEscape):
+    """
+    ===========================================================================
+    Function Documentation: sigmaZeros(sigTtab, sig0tab, aDen, SigEscape)
+    ---------------------------------------------------------------------------
+    Description:
+    The Python function sigmaZeros(sigTtab, sig0tab, aDen, SigEscape) calculates 
+    the zero-concentration macroscopic cross sections (sigma-zeros) for a mixture 
+    of isotopes. It iteratively determines the values of sigma-zeros for each 
+    energy group to achieve convergence within a specified tolerance. This function 
+    is commonly used in nuclear reactor physics calculations and simulations.
+    ---------------------------------------------------------------------------
+    Parameters:
+    - sigTtab: A 2D numpy array containing the total macroscopic cross sections 
+      (sigma-t) of different isotopes in the mixture. The array has dimensions 
+      '(nIso, ng)', where 'nIso' is the number of isotopes in the mixture, and 
+      'ng' is the number of energy groups.
+    - sig0tab: A 2D numpy array representing initial guesses for the sigma-zero 
+      values. It contains the initial estimates for the infinite dilution 
+      macroscopic cross sections for each isotope and energy group. The array has 
+      the same dimensions as 'sigTtab' '(nIso, ng)'.
+    - aDen: A list or 1D numpy array containing the atomic number densities 
+      (atom/barn-cm) of the isotopes present in the mixture. It has a length of 'nIso'.
+    - SigEscape: A constant value representing the macroscopic cross section 
+      of the escaping neutrons in the system.
+    ---------------------------------------------------------------------------
+    Return Value:
+    The function returns a 2D numpy array of macroscopic cross sections 
+    (sigma-zero values) for each isotope and energy group in the mixture. 
+    The resulting array has dimensions '(nIso, ng)'.
+    ---------------------------------------------------------------------------
+    Usage:
+    sigma_zero_array = sigmaZeros(sigTtab, sig0tab, aDen, SigEscape)
+    ---------------------------------------------------------------------------
+    Role in Constructing Macroscopic Cross Sections for Reactor Physics:
+    In reactor physics, macroscopic cross sections are essential for characterizing 
+    the interaction of neutrons with matter in a nuclear reactor. Macroscopic cross 
+    sections represent the effective probability of neutron interactions per unit 
+    length traveled by the neutron. The "macroscopic" nature refers to the fact that 
+    they are normalized with respect to the total number density of the isotopes 
+    present in the material.
+
+    The function 'sigmaZeros()' plays a crucial role in obtaining the macroscopic 
+    cross sections for a mixture of isotopes. It utilizes an iterative process to 
+    compute the sigma-zero values, which represent the macroscopic cross sections 
+    for the isotopes in the mixture when they are infinitely diluted (i.e., when 
+    there is only one isotope present in the mixture).
+
+    The algorithm iteratively updates the sigma-zero values for each energy group until 
+    the error between consecutive iterations is below a selected tolerance (1e-6). The 
+    'sigTtab' array contains the total macroscopic cross sections for each isotope in 
+    the mixture as a function of energy group. By utilizing interpolation, the function 
+    estimates the cross sections for each isotope at the current sigma-zero value.
+
+    The calculation of sigma-zero values is an essential step in determining the 
+    macroscopic cross sections for a mixture of isotopes in reactor physics simulations. 
+    These cross sections are then used in neutron transport calculations and other 
+    reactor analysis to model the behavior of neutrons as they interact with the 
+    materials and geometries present in the reactor core. Accurate and efficient 
+    determination of macroscopic cross sections is vital for predicting reactor 
+    performance, safety, and optimizing reactor design and operation.
+    ===========================================================================
+    """
     # Number of energy groups
     ng = 421
 
@@ -307,15 +557,19 @@ def sigmaZeros(sigTtab, sig0tab, aDen, SigEscape):
 @njit
 def interp1d_numba(x, y, x_new):
     """
+    ===========================================================================
+    Function Documentation: interp1d_numba(x, y, x_new)
+    ---------------------------------------------------------------------------
     Linear interpolation function using NumPy and Numba.
-    
+    ---------------------------------------------------------------------------
     Parameters:
         x (array-like): 1-D array of x-coordinates of data points.
         y (array-like): 1-D array of y-coordinates of data points.
         x_new (array-like): 1-D array of x-coordinates for which to interpolate.
-        
+    ---------------------------------------------------------------------------
     Returns:
         array-like: 1-D array of interpolated values corresponding to x_new.
+    ===========================================================================
     """
     x = np.asarray(x)
     y = np.asarray(y)
@@ -348,6 +602,55 @@ def interp1d_numba(x, y, x_new):
     return interpolated_values
 
 def interpSigS(jLgn, element, temp, Sig0):
+    """
+    ============================================================================
+    Function Documentation: interpSigS(jLgn, element, temp, Sig0)
+    ----------------------------------------------------------------------------
+    Description:
+    The Python function interpSigS(jLgn, element, temp, Sig0) is responsible for 
+    interpolating the energy-dependent scattering cross section data (sigS) for 
+    a specific energy group and a given element at a particular temperature. 
+    The function performs interpolation based on the values of the macroscopic 
+    scattering cross section (sigS) and the corresponding sigma-zeros (Sig0) for 
+    the element. The function utilizes regular expression pattern matching and 
+    interpolation techniques to extract and interpolate the scattering data from 
+    the provided HDF5 file.
+    ----------------------------------------------------------------------------
+    Parameters:
+        - jLgn (int): The index of the desired energy group for which the 
+          scattering cross section data needs to be interpolated.
+        - element (str): The name of the element (isotope) for which the 
+          scattering data is being interpolated.
+        - temp (int): The temperature at which the scattering cross section 
+          data is requested.
+        - Sig0 (1D array): An array containing sigma-zeros for the given 
+          element at the specified temperature. It represents the macroscopic 
+          cross section values that contribute to the scattering process.
+    ----------------------------------------------------------------------------
+    Return Value:
+    The function returns a 2D numpy array containing the interpolated energy-dependent 
+    scattering cross section (sigS) data for the specified energy group (jLgn) and the 
+    given element at the provided temperature. The shape of the array is (ng, ng), 
+    where ng is the number of energy groups.
+    ----------------------------------------------------------------------------
+    Example:
+    # Example input data
+    jLgn = 3
+    element = 'U235'
+    temp = 900
+    Sig0 = np.array([1.0, 2.0, 3.0])
+
+    # Perform interpolation
+    sigS_interpolated = interpSigS(jLgn, element, temp, Sig0)
+    ----------------------------------------------------------------------------
+    Note:
+    The interpSigS() function is used in reactor physics simulations to convert 
+    microscopic cross sections (probability of neutron interactions with isotopes) 
+    into macroscopic cross sections (effective interactions in a mixture of isotopes). 
+    It interpolates the data based on sigma-zero values representing background 
+    cross sections of isotopes at infinite dilution.
+    ============================================================================
+    """
     # Number of energy groups
     ng = 421
     elementDict = {
@@ -427,6 +730,21 @@ def interpSigS(jLgn, element, temp, Sig0):
 
 @njit
 def numba_sparse_find(matrix):
+    """
+    ================================================================
+    Function Documentation: numba_sparse_find(matrix)
+    ----------------------------------------------------------------
+    Find the non-zero elements in a 2D matrix and return their row, 
+    column, and value indices.
+    ----------------------------------------------------------------
+    Parameters:
+        - matrix (np.array): Input 2D numpy array.
+    ----------------------------------------------------------------
+    Returns:
+        - np.array, np.array, np.array: Row indices, column indices, 
+          and non-zero values.
+    ================================================================
+    """
     rows, cols = [], []
     values = []
     for i in range(matrix.shape[0]):
@@ -439,6 +757,23 @@ def numba_sparse_find(matrix):
 
 @njit
 def numba_coo_matrix(tmp2, ifrom, ito, shape):
+    """
+    ====================================================================
+    Function Documentation: numba_coo_matrix(tmp2, ifrom, ito, shape):
+    --------------------------------------------------------------------
+    Create a 2D compressed sparse matrix (COO format) using the provided 
+    non-zero values and their indices.
+    --------------------------------------------------------------------
+    Parameters:
+        - tmp2 (np.array): Array of non-zero values.
+        - ifrom (np.array): Row indices for the non-zero values.
+        - ito (np.array): Column indices for the non-zero values.
+        - shape (tuple): Shape of the resulting COO matrix.
+    --------------------------------------------------------------------
+    Returns:
+        - np.array: 2D compressed sparse matrix (COO format).
+    ====================================================================
+    """
     coo_matrix = np.zeros(shape)
     for i in range(len(ifrom)):
         coo_matrix[ifrom[i], ito[i]] = tmp2[i]
@@ -446,6 +781,26 @@ def numba_coo_matrix(tmp2, ifrom, ito, shape):
 
 @njit
 def numba_prep_interpSigS(jLgn, s_sig0, s_sigS, Sig0):
+    """
+    =============================================================================
+    Function Documentation: numba_prep_interpSigS(jLgn, s_sig0, s_sigS, Sig0)
+    -----------------------------------------------------------------------------
+    Prepare the macroscopic scattering cross section matrix (sigS) 
+    using non-zero values interpolation based on sigma-zero values.
+    -----------------------------------------------------------------------------
+    Parameters:
+        - jLgn (int): Index representing the scattering angular distribution.
+        - s_sig0 (np.array): Array of sigma-zero values.
+        - s_sigS (np.array): 4D array of microscopic scattering cross sections 
+          for various sigma-zero values.
+        - Sig0 (np.array): Array of sigma-zero values representing the background 
+          cross sections at infinite dilution.
+    -----------------------------------------------------------------------------
+    Returns:
+        - np.array: 2D macroscopic scattering cross section matrix (sigS) after 
+          interpolation.
+    =============================================================================
+    """
     # Number of sigma-zeros
     nSig0 = len(s_sig0)
     if nSig0 == 1:
@@ -472,6 +827,26 @@ def numba_prep_interpSigS(jLgn, s_sig0, s_sigS, Sig0):
     return sigS
 
 def boosted_interpSigS(jLgn, element, temp, Sig0):
+    """
+    =============================================================================
+    Function Documentation: boosted_interpSigS(jLgn, element, temp, Sig0)
+    -----------------------------------------------------------------------------
+    Boosted version of the function interpSigS to prepare the macroscopic 
+    scattering cross section (sigS) using non-zero values interpolation 
+    based on sigma-zero values for a given element and temperature.
+    -----------------------------------------------------------------------------
+    Parameters:
+        - jLgn (int): Index representing the scattering angular distribution.
+        - element (str): Element symbol.
+        - temp (int): Temperature in Kelvin.
+        - Sig0 (np.array): Array of sigma-zero values representing the background
+          cross sections at infinite dilution.
+    -----------------------------------------------------------------------------
+    Returns:
+        - np.array: 2D macroscopic scattering cross section matrix (sigS) after 
+          interpolation.
+    =============================================================================
+    """
     # Number of energy groups
     ng = 421
     elementDict = {
@@ -521,6 +896,42 @@ def boosted_interpSigS(jLgn, element, temp, Sig0):
     return sigS
 
 def writeMacroXS(s_struct, matName):
+    """
+    ====================================================================
+    Function Documentation: writeMacroXS(s_struct, matName)
+    --------------------------------------------------------------------
+    This function writes macroscopic cross sections, along with other 
+    parameters, to an HDF5 file with the provided filename.
+    --------------------------------------------------------------------
+    Parameters:
+        - s_struct (dict): A dictionary containing the macroscopic cross 
+          section data and other parameters.
+        - matName (str): The name of the HDF5 file to be created 
+          (without the '.h5' extension).
+    --------------------------------------------------------------------
+    Example:
+        s_struct = {
+            'temp': 600.0,        # Temperature in Kelvin
+            'por': 0.4,           # Porosity
+            'den': 4.2,           # Density in g/cm^3
+            'molEnrich': 4.8,     # Molar enrichment
+            'ng': 421,            # Number of energy groups
+            'SigS': {             # Dictionary containing Legendre components 
+                                  # of the scattering matrix
+                'SigS[0]': array([...]),
+                'SigS[1]': array([...]),
+                ...
+            },
+            'Sig2': array([...]), # Array of total cross sections
+            'SigP': array([...]), # Array of production cross sections (optional)
+            'SigF': array([...]), # Array of fission cross sections (optional)
+            'chi': array([...]),  # Array of fission spectra (optional)
+            ...
+        }
+
+        writeMacroXS(s_struct, 'water_boric_acid')
+    ====================================================================
+    """
     print(f'Write macroscopic cross sections to the file: {matName}.h5')
     
     # Convert int and float to np.ndarray
@@ -662,13 +1073,14 @@ def main():
     hdf5_B11 = h5py.File(micro_XS_path + '/micro_B_011__600K.h5', 'r')  # INPUT
     print(f"File 'micro_B_011__600K.h5' has been read in.")
 
+    # initialize material dictionary
     H2OB = {}
 
     # Set input parameters
-    H2OB['temp'] = 600  # K
-    H2OB['p'] = 16  # MPa
-    H2OB['bConc'] = 4000e-6  # 1e-6 = 1 ppm
-    H2OB['eg'] = np.array(hdf5_H01.get('en_G').get('eg'))  # Assuming 'eg' is the dataset name
+    H2OB['temp'] = 600          # K                                     # INPUT
+    H2OB['p'] = 16              # MPa                                   # INPUT
+    H2OB['bConc'] = 4000e-6     # 1e-6 = 1 ppm                          # INPUT
+    H2OB['eg'] = np.array(hdf5_H01.get('en_G').get('eg')) 
     H2OB['ng'] = 421
 
     # Mass of one "average" H2OB molecule in atomic unit mass [a.u.m.]:
@@ -681,10 +1093,10 @@ def main():
     density = steamTable.rho_pt(H2OB['p'] * 10, H2OB['temp'] - 273)
 
     # The water density:
-    H2OB['den'] = density * 1e-3  # [g/cm3]
-    rho = H2OB['den'] * 1.0e-24  # [g/(barn*cm)]
-    rho = rho / 1.660538e-24  # [(a.u.m.)/(barn*cm)]
-    rho = rho / H2OB['aw']  # [number of H2O molecules/(barn*cm)]
+    H2OB['den'] = density * 1e-3    # [g/cm3]
+    rho = H2OB['den'] * 1.0e-24     # [g/(barn*cm)]
+    rho = rho / 1.660538e-24        # [(a.u.m.)/(barn*cm)]
+    rho = rho / H2OB['aw']          # [number of H2O molecules/(barn*cm)]
 
     # The names of isotopes
     H2OB['isoName'] = ['H01', 'O16', 'B10', 'B11']
@@ -884,4 +1296,8 @@ def main():
     hdf5_B11.close()
 
 if __name__ == '__main__':
+    start_time = time.time()
     main()
+    stop_time = time.time()
+    elapsed_time = stop_time - start_time
+    print(f"Elapsed time is {elapsed_time:.3f} seconds.")
