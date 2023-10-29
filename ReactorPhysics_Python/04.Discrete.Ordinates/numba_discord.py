@@ -923,6 +923,31 @@ def numba_convert(solution, N, nNodesX, nNodesY,
     return fi
 
 @nb.njit
+def calculate_keff(SigP, Sig2, FI, volume, SigA, nNodesY, nNodesX):
+    # pRate is total neutron production rate
+    pRate = 0
+    # aRate is total neutron absorption rate
+    aRate = 0
+
+    for iy in range(nNodesY):
+        for ix in range(nNodesX):
+            pRate += (SigP[ix, iy] + 2 * np.sum(Sig2[ix, iy, :], axis = 1)) @ FI[ix, iy] * volume[ix, iy]
+            aRate += SigA[ix, iy] @ FI[ix, iy] * volume[ix, iy]
+
+    keff_value = pRate / aRate
+
+    return keff_value
+
+@nb.njit
+def calculate_RHS(qT):
+    dim = qT.shape[0] * qT.shape[1]
+    RHS = np.zeros(dim)
+    for i in range(qT.shape[0]):
+        for j in range(qT.shape[1]):
+            RHS[i*qT.shape[1] + j] = qT[i, j]
+    return RHS
+
+@nb.njit
 def matmul(vector1, vector2):
     if vector1.ndim != 1 or vector2.ndim != 1:
         raise ValueError("Both inputs must be 1-dimensional arrays.")
@@ -1312,10 +1337,10 @@ for n in range(g['N']):
 g['L'] = 0  # INPUT
 # Initialize the 'R' key in the 'g' dictionary
 g['R'] = {}
+g['R'] = np.zeros((g['N'], int(2*g['L'] + 1), int(2*g['L'] + 1)))
 # Calculate spherical harmonics for every ordinate
 for n in range(g['N']):
-    g['R'][n] = np.zeros((2 * g['L'] + 1, 2 * g['L'] + 1))
-
+    #g['R'][n] = np.zeros((2 * g['L'] + 1, 2 * g['L'] + 1))
     for jLgn in range(g['L'] + 1):
         for m in range(-jLgn, jLgn + 1):
             if jLgn == 0 and m == 0:
@@ -1408,28 +1433,12 @@ for nIter in range(1, numIter + 1):
             FI[ix - 1, iy - 1, :] = fiL[ix - 1, iy - 1, :, 0, 0]
 
     #-----------------------------------------------------------------------
-    # pRate is total neutron production rate
-    pRate = 0
-    # aRate is total neutron absorption rate
-    aRate = 0
-    ans1 = np.zeros((10,421))
-    ans2 = np.zeros((10,421))
-    ans3 = np.zeros((10, 2))
-    for iy in range(g['nNodesY']):
-        for ix in range(g['nNodesX']):
-            pRate += (SigP[ix, iy] + 2 * np.sum(Sig2[ix, iy, :], axis = 1)) @ FI[ix, iy] * volume[ix, iy]
-            #        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ The exact point where everything goes to shit
-            # Best theory at the moment is that floating point errors start to accumulate and will start causing noticable 
-            # differences in the final output
-            aRate += SigA[ix, iy] @ FI[ix, iy] * volume[ix, iy]
-            #print("pRate", pRate, "\naRate =", aRate)
-    #print(sp.sparse.coo_matrix(2 * np.sum(Sig2[ix, iy, :], axis = 1)))
-    #print("aRate", aRate, "\npRate =", pRate)
+    keff_value = calculate_keff(SigP, Sig2, FI, volume, SigA, g['nNodesY'], g['nNodesX'])
 
     # We evaluate the multiplication factor as a ratio of neutron
     # production rate and neutron absorption rate (there is no neutron
     # leakage in the infinite lattice):
-    keff.append(pRate / aRate)
+    keff.append(keff_value)
     print(f'keff = {keff[-1]:9.5f} #nOuter = {nIter:3}', end=' ')
 
     #-----------------------------------------------------------------------
@@ -1471,11 +1480,7 @@ for nIter in range(1, numIter + 1):
     # Reshape qT into a column vector
     #RHS = qT.reshape(-1, 1)
     #RHS.shape
-    dim = qT.shape[0] * qT.shape[1]
-    RHS = np.zeros(dim)
-    for i in range(qT.shape[0]):
-        for j in range(qT.shape[1]):
-            RHS[i*qT.shape[1] + j] = qT[i][j] 
+    RHS = calculate_RHS(qT)
 
     #-----------------------------------------------------------------------
     # Relative residual reduction factor
