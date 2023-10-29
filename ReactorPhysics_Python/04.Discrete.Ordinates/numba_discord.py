@@ -3,6 +3,7 @@ import h5py
 import time as t
 import numpy as np
 import numba as nb
+from numba import prange
 import scipy as sp
 import matplotlib.pyplot as plt
 from pyXSteam.XSteam import XSteam
@@ -922,6 +923,24 @@ def numba_convert(solution, N, nNodesX, nNodesY,
    
     return fi
 
+@nb.njit #(parallel=True)
+def calc_fiL_FI(fi, g_nNodesX, g_nNodesY, g_L, g_N, g_R, g_W):
+    ng = 421
+    fiL = np.zeros((g_nNodesX, g_nNodesY, ng, g_L + 1, 2 * g_L + 1))
+    FI =  np.zeros((g_nNodesX, g_nNodesY, ng))
+
+    for iy in range(1, g_nNodesY + 1):
+        for ix in range(1, g_nNodesX + 1):
+            for jLgn in range(g_L + 1):
+                for m in range(-jLgn, jLgn + 1):
+                    SUM = np.zeros(ng)
+                    for n in range(g_N):
+                        SUM += fi[:, n, ix - 1, iy - 1] * g_R[n][jLgn, jLgn + m] * g_W[n]
+                    fiL[ix - 1, iy - 1, :, jLgn, jLgn + m] = SUM
+            FI[ix - 1, iy - 1, :] = fiL[ix - 1, iy - 1, :, 0, 0]
+
+    return fiL, FI
+
 @nb.njit
 def calculate_keff(SigP, Sig2, FI, volume, SigA, nNodesY, nNodesX):
     # pRate is total neutron production rate
@@ -965,6 +984,28 @@ def matmul(vector1, vector2):
             result[i, j] = vector1[i] * vector2[j]
 
     return result
+
+@nb.njit
+def calc_qT_nEq(nEq, qF, q2, g_N, g_nNodesX, g_nNodesY, g_L, g_muX, g_muY, g_muZ, g_R, SigS, fiL):
+    #ng = fiL.shape[0]
+    ng = 421
+
+    for n in range(g_N):
+        if g_muZ[n] >= 0 and not ((ix == 0 and g_muX[n] > 0) or (ix == g_nNodesX-1 and g_muX[n] < 0) or
+                                 (iy == 0 and g_muY[n] > 0) or (iy == g_nNodesY-1 and g_muY[n] < 0)):
+            # Scattering source (1/s-cm3-steradian), isotropic (g["L"] = 0) or anisotropic (g["L"] > 0)
+            qS = np.zeros(ng)
+            for jLgn in range(g_L + 1):
+                SUM = np.zeros(ng)
+                for m in range(-jLgn, jLgn + 1):
+                    SUM += fiL[ix, iy][:, jLgn, jLgn + m] * g_R[n][jLgn, jLgn + m]
+                qS += (2*jLgn+1) * np.dot(np.transpose(SigS[jLgn][ix, iy]), SUM) / (4*np.pi)
+
+            nEq += 1
+            # Right-hand side is a total neutron source:
+            qT_value = qF + q2 + qS
+
+    return qT_value, nEq
 
 @nb.njit
 def numba_funDO(solution,
@@ -1419,19 +1460,7 @@ for nIter in range(1, numIter + 1):
                     g["nRefX"], g["nRefY"], g["nRefZ"]
                 )
     #-----------------------------------------------------------------------
-    fiL = np.zeros((g['nNodesX'], g['nNodesY'], ng, g['L'] + 1, 2 * g['L'] + 1))
-    FI = np.zeros((g['nNodesX'], g['nNodesY'], ng))
-
-    for iy in range(1, g['nNodesY'] + 1):
-        for ix in range(1, g['nNodesX'] + 1):
-            for jLgn in range(g['L'] + 1):
-                for m in range(-jLgn, jLgn + 1):
-                    SUM = np.zeros(ng)
-                    for n in range(g['N']):
-                        SUM += fi[:, n, ix - 1, iy - 1] * g['R'][n][jLgn, jLgn + m] * g['W'][n]
-                    fiL[ix - 1, iy - 1, :, jLgn, jLgn + m] = SUM
-            FI[ix - 1, iy - 1, :] = fiL[ix - 1, iy - 1, :, 0, 0]
-
+    fiL, FI = calc_fiL_FI(fi, g['nNodesX'], g['nNodesY'], g['L'], g['N'], g['R'], g['W'])
     #-----------------------------------------------------------------------
     keff_value = calculate_keff(SigP, Sig2, FI, volume, SigA, g['nNodesY'], g['nNodesX'])
 
