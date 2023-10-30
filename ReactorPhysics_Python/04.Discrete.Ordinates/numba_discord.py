@@ -4,7 +4,6 @@ import time as t
 import numpy as np
 import numba as nb
 from numba import prange
-import scipy as sp
 import matplotlib.pyplot as plt
 from pyXSteam.XSteam import XSteam
 
@@ -943,9 +942,7 @@ def calc_fiL_FI(fi, g_nNodesX, g_nNodesY, g_L, g_N, g_R, g_W):
 
 @nb.njit
 def calculate_keff(SigP, Sig2, FI, volume, SigA, nNodesY, nNodesX):
-    # pRate is total neutron production rate
     pRate = 0
-    # aRate is total neutron absorption rate
     aRate = 0
 
     for iy in range(nNodesY):
@@ -967,6 +964,60 @@ def calculate_RHS(qT):
     return RHS
 
 @nb.njit
+def calc_qT_nEq(ix, iy, nEq, qF, q2, g_N, g_nNodesX, g_nNodesY, g_L, g_muX, g_muY, g_muZ, g_R, SigS, fiL):
+    #ng = fiL.shape[0]
+    ng = 421
+    qT_list_tmp = []
+
+    for n in range(g_N):
+        if g_muZ[n] >= 0 and not ((ix == 0 and g_muX[n] > 0) or (ix == g_nNodesX-1 and g_muX[n] < 0) or
+                                  (iy == 0 and g_muY[n] > 0) or (iy == g_nNodesY-1 and g_muY[n] < 0)):
+            # Scattering source (1/s-cm3-steradian), isotropic (g["L"] = 0) or anisotropic (g["L"] > 0)
+            qS = np.zeros(ng)
+            for jLgn in range(g_L + 1):
+                SUM = np.zeros(ng)
+                for m in range(-jLgn, jLgn + 1):
+                    SUM += fiL[ix, iy][:, jLgn, jLgn + m] * g_R[n][jLgn, jLgn + m]
+                qS += (2*jLgn+1) * np.dot(np.transpose(SigS[jLgn][ix, iy]), SUM) / (4*np.pi)
+
+            nEq += 1
+            # Right-hand side is a total neutron source:
+            #qT_value = qF + q2 + qS
+            qT_list_tmp.append(qF + q2 + qS)
+            #qT_list = np.append(qT_list, qF + q2 + qS)
+
+    return qT_list_tmp, nEq
+
+@nb.njit
+def compute_qT(FI, fiL, chi, keff, SigP, Sig2, SigS, g_N, g_L, g_R, g_muX, g_muY, g_muZ, g_nNodesX, g_nNodesY):
+    nEq = 0
+    ng = int(421)
+    q2 = np.zeros(ng)
+    #qT_list = np.empty(620, dtype=np.float64)
+    qT_list = []
+
+    for iy in range(g_nNodesY):
+        for ix in range(g_nNodesX):
+            # Fission source (1/s-cm3-steradian)
+            qF = matmul(chi[ix, iy], SigP[ix, iy]) @ FI[ix, iy] / keff[-1] / (4*np.pi)
+
+            # Isotropic source from (n,2n) (1/s-cm3-steradian)
+            q2 = 2 * np.dot(np.transpose(Sig2[ix, iy]), FI[ix, iy]) / (4*np.pi)
+
+            qT_list_tmp, nEq = calc_qT_nEq(ix, iy, nEq, qF, q2, g_N, g_nNodesX, g_nNodesY,
+                                            g_L, g_muX, g_muY, g_muZ, g_R, SigS, fiL)
+            
+            # Right-hand side is a total neutron source:
+            #qT_list = np.append(qT_list, qF + q2 + qS)
+            for ii in range(len(qT_list_tmp)):
+                qT_list.append(qT_list_tmp[ii])  
+
+    # Convert the list of qT to a numpy array
+    #qT = np.array(qT_list)
+
+    return qT_list
+
+@nb.njit
 def matmul(vector1, vector2):
     if vector1.ndim != 1 or vector2.ndim != 1:
         raise ValueError("Both inputs must be 1-dimensional arrays.")
@@ -984,28 +1035,6 @@ def matmul(vector1, vector2):
             result[i, j] = vector1[i] * vector2[j]
 
     return result
-
-@nb.njit
-def calc_qT_nEq(nEq, qF, q2, g_N, g_nNodesX, g_nNodesY, g_L, g_muX, g_muY, g_muZ, g_R, SigS, fiL):
-    #ng = fiL.shape[0]
-    ng = 421
-
-    for n in range(g_N):
-        if g_muZ[n] >= 0 and not ((ix == 0 and g_muX[n] > 0) or (ix == g_nNodesX-1 and g_muX[n] < 0) or
-                                 (iy == 0 and g_muY[n] > 0) or (iy == g_nNodesY-1 and g_muY[n] < 0)):
-            # Scattering source (1/s-cm3-steradian), isotropic (g["L"] = 0) or anisotropic (g["L"] > 0)
-            qS = np.zeros(ng)
-            for jLgn in range(g_L + 1):
-                SUM = np.zeros(ng)
-                for m in range(-jLgn, jLgn + 1):
-                    SUM += fiL[ix, iy][:, jLgn, jLgn + m] * g_R[n][jLgn, jLgn + m]
-                qS += (2*jLgn+1) * np.dot(np.transpose(SigS[jLgn][ix, iy]), SUM) / (4*np.pi)
-
-            nEq += 1
-            # Right-hand side is a total neutron source:
-            qT_value = qF + q2 + qS
-
-    return qT_value, nEq
 
 @nb.njit
 def numba_funDO(solution,
@@ -1292,6 +1321,9 @@ def plot_hdf2dict(file_name):
     plot_results(data)
 
 
+
+##################################################################################################################
+
 # Start stopwatch
 start_time = t.time()
 
@@ -1377,7 +1409,6 @@ for n in range(g['N']):
 # Scattering source anisotropy: 0 -- P0 (isotropic), 1 -- P1
 g['L'] = 0  # INPUT
 # Initialize the 'R' key in the 'g' dictionary
-g['R'] = {}
 g['R'] = np.zeros((g['N'], int(2*g['L'] + 1), int(2*g['L'] + 1)))
 # Calculate spherical harmonics for every ordinate
 for n in range(g['N']):
@@ -1437,7 +1468,8 @@ for iy in range(1, g['nNodesY'] + 1):
                 nEq = nEq + ng
 
 #--------------------------------------------------------------------------
-keff = []
+#keff = []
+keff = np.empty((0,))
 residual = []
 
 # Number of outer iterations
@@ -1463,52 +1495,19 @@ for nIter in range(1, numIter + 1):
     fiL, FI = calc_fiL_FI(fi, g['nNodesX'], g['nNodesY'], g['L'], g['N'], g['R'], g['W'])
     #-----------------------------------------------------------------------
     keff_value = calculate_keff(SigP, Sig2, FI, volume, SigA, g['nNodesY'], g['nNodesX'])
-
-    # We evaluate the multiplication factor as a ratio of neutron
-    # production rate and neutron absorption rate (there is no neutron
-    # leakage in the infinite lattice):
-    keff.append(keff_value)
+    #keff.append(keff_value)
+    keff = np.append(keff, keff_value)
     print(f'keff = {keff[-1]:9.5f} #nOuter = {nIter:3}', end=' ')
 
     #-----------------------------------------------------------------------
     # Calculate fission, (n,2n) and scattering neutron sources
     # Initialize the total neutron source vector and nEq
-    nEq = 0
-    q2 = np.zeros(ng)
-    #qT_list = np.zeros((ng, ))
-    qT_list = []
 
-    for iy in range(g["nNodesY"]):
-        for ix in range(g["nNodesX"]):
-            # Fission source (1/s-cm3-steradian)
-            qF = matmul(chi[ix, iy], SigP[ix, iy]) @ FI[ix, iy] / keff[-1] / (4*np.pi)
-
-            # Isotropic source from (n,2n) (1/s-cm3-steradian)
-            q2 = 2 * np.dot(np.transpose(Sig2[ix, iy]), FI[ix, iy]) / (4*np.pi)
-
-            for n in range(g["N"]):
-                if g["muZ"][n] >= 0 and not ((ix == 0 and g["muX"][n] > 0) or (ix == g["nNodesX"]-1 and g["muX"][n] < 0) or
-                                            (iy == 0 and g["muY"][n] > 0) or (iy == g["nNodesY"]-1 and g["muY"][n] < 0)):
-                    # Scattering source (1/s-cm3-steradian), isotropic (g["L"] = 0) or anisotropic (g["L"] > 0)
-                    qS = np.zeros(ng)
-                    for jLgn in range(g["L"] + 1):
-                        SUM = np.zeros(ng)
-                        for m in range(-jLgn, jLgn + 1):
-                            SUM += fiL[ix, iy][:, jLgn, jLgn + m] * g["R"][n][jLgn, jLgn + m]
-                        qS += (2*jLgn+1) * np.dot(np.transpose(SigS[jLgn][ix, iy]), SUM) / (4*np.pi)
-
-                    nEq += 1
-                    # Right-hand side is a total neutron source:
-                    qT_list.append(qF + q2 + qS)
-                    #np.append(qT_list, qF + q2 + qS)
-                    #qT_list[:,nEq] = qF + q2 + qS
-
-    # Convert the list of qT to a numpy array
+    qT_list = compute_qT(FI, fiL, chi, keff, SigP, Sig2, SigS, g['N'], g['L'], g['R'], 
+                    g['muX'], g['muY'], g['muZ'], g['nNodesX'], g['nNodesY'])
     qT = np.array(qT_list)
 
     # Reshape qT into a column vector
-    #RHS = qT.reshape(-1, 1)
-    #RHS.shape
     RHS = calculate_RHS(qT)
 
     #-----------------------------------------------------------------------
