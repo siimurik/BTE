@@ -488,9 +488,9 @@ def main():
     print(f"File 'macro421_H2OB__600K.h5' has been read in.")
 
     # Define the majorant: the maximum total cross-section vector
-    # This part just looks at all the three different vectors and creates a new
-    # vector that picks out the largest value for every index from each of the 
-    # three vectros. Althought there are some rounding differences.
+    # This part just looks at all the three different vectors and
+    # creates a new vector that picks out the largest value for 
+    # every index from each of the three vectros.
     SigTmax = np.max(np.vstack((fuel["SigT"], clad["SigT"], cool["SigT"])), axis=0)
 
     # Number of energy groups
