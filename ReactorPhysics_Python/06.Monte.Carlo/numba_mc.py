@@ -551,10 +551,13 @@ def main():
                 #print("freePath = ", freePath)
 
                 if not virtualCollision:
-                    #print("Collision was virtual!")
+                    # This block will be executed when virtualCollision is False.
+                    # It implies that there was no virtual collision. So, the 
+                    # condition is true when there was not a virtual collision.
+                    
                     # Sample the direction of neutron flight assuming both
-                    # fission and scattering are isotropic in the lab (a strong
-                    # assumption!)
+                    # fission and scattering are isotropic in the lab (a 
+                    # strong assumption!)
                     dirX, dirY = sample_direction()
                 # Fly
                 x, y = move_neutron(x, y, iNeutron, pitch, freePath, dirX, dirY)
