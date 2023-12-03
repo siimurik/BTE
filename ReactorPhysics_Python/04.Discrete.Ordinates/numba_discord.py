@@ -5100,7 +5100,7 @@ def getLebedevSphere(degree):
     return leb_tmp
 
 def initPWR_like():
-    #global global_g
+    # global_g
     with h5py.File("..//00.Lib/initPWR_like.h5", "w") as hdf:
         g  = hdf.create_group("g")
         th = hdf.create_group("th")
@@ -5335,10 +5335,40 @@ def hdf2dict(file_name):
     return data
 
 @nb.njit
-def numba_convert(solution, N, nNodesX, nNodesY,
+def reshapeAngFlux(solution, N, nNodesX, nNodesY,
                   muX, muY, muZ,
                   nRefX, nRefY, nRefZ):
-    
+    """
+    -------------------------------------------------------------------
+    Documenation for the reshapeAngFlux() function
+    -------------------------------------------------------------------
+    Reshapes the flattened solution array into a 3D array, aligning it 
+    with the geometry of the problem and applying boundary conditions 
+    to ensure physical consistency in the angular flux distribution.
+
+    ### Parameters:
+    - solution (numpy.ndarray): Flattened array representing the angular 
+      flux solution.
+    - N (int): Number of discrete ordinates (angular directions).
+    - nNodesX (int): Number of nodes in the X direction.
+    - nNodesY (int): Number of nodes in the Y direction.
+    - muX (numpy.ndarray): X-direction cosines of the discrete ordinates.
+    - muY (numpy.ndarray): Y-direction cosines of the discrete ordinates.
+    - muZ (numpy.ndarray): Z-direction cosines of the discrete ordinates.
+    - nRefX (numpy.ndarray): Reference indices for angular flux in the X direction.
+    - nRefY (numpy.ndarray): Reference indices for angular flux in the Y direction.
+    - nRefZ (numpy.ndarray): Reference indices for angular flux in the Z direction.
+
+    ### Returns:
+    - numpy.ndarray: 3D array representing the reshaped angular flux with 
+    applied boundary conditions.
+
+    ### Example:
+    ```
+    fi_array = reshapeAngFlux(solution, N, nNodesX, nNodesY, muX, muY, muZ, nRefX, nRefY, nRefZ)
+    ```
+    ===================================================================
+    """
     #global g
     
     ng = 421
@@ -5386,24 +5416,96 @@ def numba_convert(solution, N, nNodesX, nNodesY,
 
 @nb.njit #(parallel=True)
 def calc_fiL_FI(fi, g_nNodesX, g_nNodesY, g_L, g_N, g_R, g_W):
+    """
+    -------------------------------------------------------------------
+    Documenation for the calc_fiL_FI() function
+    -------------------------------------------------------------------
+    Calculates the Legendre moment of flux (fiL) and the 
+    scalar flux (FI) for each spatial node.
+
+    ### Parameters:
+    - fi (numpy.ndarray): 4D array representing the angular flux 
+      distribution. Dimensions: (energy group, discrete ordinate, 
+      spatial nodes in the X direction, spatial nodes in the Y direction).
+    - g_nNodesX (int): Number of nodes in the X direction.
+    - g_nNodesY (int): Number of nodes in the Y direction.
+    - g_L (int): Maximum Legendre order for the expansion.
+    - g_N (int): Number of discrete ordinates (angular directions).
+    - g_R (numpy.ndarray): Spherical harmonics coefficients for each 
+      discrete ordinate and Legendre order. Dimensions: 
+      (discrete ordinate, Legendre order + 1, 2 * Legendre order + 1).
+    - g_W (numpy.ndarray): Lebedev grid weights.
+
+    ### Returns:
+    - tuple: A tuple containing two arrays:
+        - fiL (numpy.ndarray): 5D array representing the Legendre expansion 
+          coefficients. Dimensions: (spatial nodes in the X direction, 
+          spatial nodes in the Y direction, energy group, Legendre order + 1, 
+          2 * Legendre order + 1).
+        - FI (numpy.ndarray): 3D array representing the scalar flux. 
+          Dimensions: (spatial nodes in the X direction, 
+          spatial nodes in the Y direction, energy group).
+
+    ### Example:
+    ```
+    fiL, FI = calc_fiL_FI(fi, g_nNodesX, g_nNodesY, g_L, g_N, g_R, g_W)
+    ```
+    """
     ng = 421
     fiL = np.zeros((g_nNodesX, g_nNodesY, ng, g_L + 1, 2 * g_L + 1))
     FI =  np.zeros((g_nNodesX, g_nNodesY, ng))
 
     for iy in range(1, g_nNodesY + 1):
         for ix in range(1, g_nNodesX + 1):
+            # convert angular flux fi to the Legendre moments fiL
             for jLgn in range(g_L + 1):
                 for m in range(-jLgn, jLgn + 1):
                     SUM = np.zeros(ng)
                     for n in range(g_N):
                         SUM += fi[:, n, ix - 1, iy - 1] * g_R[n][jLgn, jLgn + m] * g_W[n]
                     fiL[ix - 1, iy - 1, :, jLgn, jLgn + m] = SUM
+            # Scalar flux
             FI[ix - 1, iy - 1, :] = fiL[ix - 1, iy - 1, :, 0, 0]
 
     return fiL, FI
 
 @nb.njit
 def calculate_keff(SigP, Sig2, FI, volume, SigA, nNodesY, nNodesX):
+    """
+    ------------------------------------------------------------------
+    Documenation for the calculate_keff() function
+    ------------------------------------------------------------------
+    Calculates the effective neutron multiplication factor (k_eff) for 
+    a nuclear reactor.
+
+    ### Parameters:
+    - SigP (numpy.ndarray): 2D array representing the macroscopic Production 
+      cross-section for each spatial node. Dimensions: (spatial nodes in 
+      the X direction, spatial nodes in the Y direction).
+    - Sig2 (numpy.ndarray): 3D array representing the macroscopic scattering 
+      cross-section of (n, 2n) reaction for each spatial node. Dimensions: 
+      (spatial nodes in the X direction, spatial nodes in the Y direction, 
+      energy group).
+    - FI (numpy.ndarray): 3D array representing the scalar flux for each 
+      spatial node. Dimensions: (spatial nodes in the X direction, 
+      spatial nodes in the Y direction, energy group).
+    - volume (numpy.ndarray): 2D array representing the volume of each 
+      spatial node. Dimensions: (spatial nodes in the X direction, spatial 
+      nodes in the Y direction).
+    - SigA (numpy.ndarray): 2D array representing the macroscopic absorption 
+      cross-section for each spatial node. Dimensions: (spatial nodes in the X 
+      direction, spatial nodes in the Y direction).
+    - nNodesY (int): Number of spatial nodes in the Y direction.
+    - nNodesX (int): Number of spatial nodes in the X direction.
+
+    ### Returns:
+    - float: The calculated effective neutron multiplication factor (k_eff).
+
+    ### Example:
+    ```
+    keff = calculate_keff(SigP, Sig2, FI, volume, SigA, nNodesY, nNodesX)
+    ```
+    """
     pRate = 0
     aRate = 0
 
@@ -5418,6 +5520,23 @@ def calculate_keff(SigP, Sig2, FI, volume, SigA, nNodesY, nNodesX):
 
 @nb.njit
 def calculate_RHS(qT):
+    """
+    ------------------------------------------------------------------
+    Documenation for the calculate_RHS() function
+    ------------------------------------------------------------------
+    Calculate the Right-Hand Side (RHS) vector from a 2D input array.
+
+    ### Parameters:
+    - qT (numpy.ndarray): 2D array representing the input quantities.
+
+    ### Returns:
+    - RHS (numpy.ndarray): Flattened vector containing the elements of qT.
+
+    ### Example:
+    >>> qT = np.array([[1, 2], [3, 4]])
+    >>> calculate_RHS(qT)
+    array([1., 2., 3., 4.])
+    """
     dim = qT.shape[0] * qT.shape[1]
     RHS = np.zeros(dim)
     for i in range(qT.shape[0]):
@@ -5427,6 +5546,33 @@ def calculate_RHS(qT):
 
 @nb.njit
 def calc_qT_nEq(ix, iy, nEq, qF, q2, g_N, g_nNodesX, g_nNodesY, g_L, g_muX, g_muY, g_muZ, g_R, SigS, fiL):
+    """
+    ------------------------------------------------------------------
+    Documenation for the calc_qT_nEq() function
+    ------------------------------------------------------------------
+    Calculate the total neutron source for a specific spatial grid point.
+
+    ### Parameters:
+    - ix (int): Index of the x-coordinate in the spatial grid.
+    - iy (int): Index of the y-coordinate in the spatial grid.
+    - nEq (int): Equation number, representing the current position in the linear system.
+    - qF (numpy.ndarray): Fission source term.
+    - q2 (numpy.ndarray): Secondary source term.
+    - g_N (int): Number of discrete directions.
+    - g_nNodesX (int): Number of nodes along the x-coordinate.
+    - g_nNodesY (int): Number of nodes along the y-coordinate.
+    - g_L (int): Maximum Legendre order for scattering.
+    - g_muX (numpy.ndarray): Discrete x-direction cosines.
+    - g_muY (numpy.ndarray): Discrete y-direction cosines.
+    - g_muZ (numpy.ndarray): Discrete z-direction cosines.
+    - g_R (list): List of spherical harmonics for each discrete direction.
+    - SigS (list of numpy.ndarray): Scattering cross-section for different Legendre orders.
+    - fiL (numpy.ndarray): Legendre moments of angular flux.
+
+    ### Returns:
+    - qT_list_tmp (list): List of total neutron sources for each discrete direction.
+    - nEq (int): Updated equation number.
+    """
     #ng = fiL.shape[0]
     ng = 421
     qT_list_tmp = []
@@ -5444,14 +5590,41 @@ def calc_qT_nEq(ix, iy, nEq, qF, q2, g_N, g_nNodesX, g_nNodesY, g_L, g_muX, g_mu
 
             nEq += 1
             # Right-hand side is a total neutron source:
-            #qT_value = qF + q2 + qS
             qT_list_tmp.append(qF + q2 + qS)
+            # Alternative ways to format, which were abandoned
+            #qT_value = qF + q2 + qS
             #qT_list = np.append(qT_list, qF + q2 + qS)
 
     return qT_list_tmp, nEq
 
 @nb.njit
 def compute_qT(FI, fiL, chi, keff, SigP, Sig2, SigS, g_N, g_L, g_R, g_muX, g_muY, g_muZ, g_nNodesX, g_nNodesY):
+    """
+    ------------------------------------------------------------------
+    Documenation for the compute_qT() function
+    ------------------------------------------------------------------
+    Compute the total neutron source for each spatial grid point.
+
+    ### Parameters:
+    - FI (numpy.ndarray): Angular flux moment at each spatial grid point.
+    - fiL (numpy.ndarray): Legendre moments of angular flux.
+    - chi (numpy.ndarray): Fission spectrum.
+    - keff (float): Effective multiplication factor.
+    - SigP (numpy.ndarray): Total macroscopic fission cross-section.
+    - Sig2 (numpy.ndarray): Scattering macroscopic cross-section.
+    - SigS (list of numpy.ndarray): Scattering cross-section for different Legendre orders.
+    - g_N (int): Number of discrete directions.
+    - g_L (int): Maximum Legendre order for scattering.
+    - g_R (list): List of spherical harmonics for each discrete direction.
+    - g_muX (numpy.ndarray): Discrete x-direction cosines.
+    - g_muY (numpy.ndarray): Discrete y-direction cosines.
+    - g_muZ (numpy.ndarray): Discrete z-direction cosines.
+    - g_nNodesX (int): Number of nodes along the x-coordinate.
+    - g_nNodesY (int): Number of nodes along the y-coordinate.
+
+    ### Returns:
+    - qT_list (list): List of total neutron sources for each discrete direction at each spatial grid point.
+    """
     nEq = 0
     ng = int(421)
     q2 = np.zeros(ng)
@@ -5481,6 +5654,28 @@ def compute_qT(FI, fiL, chi, keff, SigP, Sig2, SigS, g_N, g_L, g_R, g_muX, g_muY
 
 @nb.njit
 def matmul(vector1, vector2):
+    """
+    ------------------------------------------------------------------
+    Documenation for the matmul() function
+    ------------------------------------------------------------------
+    Perform matrix multiplication (outer product) of two 1-dimensional 
+    arrays.
+
+    ### Parameters:
+    - vector1 (numpy.ndarray): 1-dimensional array.
+    - vector2 (numpy.ndarray): 1-dimensional array.
+
+    ### Returns:
+    - result (numpy.ndarray): Outer product of vector1 and vector2.
+
+    ### Example:
+    >>> vector1 = np.array([1, 2, 3])
+    >>> vector2 = np.array([4, 5, 6])
+    >>> matmul(vector1, vector2)
+    array([[ 4.,  5.,  6.],
+           [ 8., 10., 12.],
+           [12., 15., 18.]])
+    """
     if vector1.ndim != 1 or vector2.ndim != 1:
         raise ValueError("Both inputs must be 1-dimensional arrays.")
 
@@ -5499,46 +5694,31 @@ def matmul(vector1, vector2):
     return result
 
 @nb.njit
-def numba_funDO(solution,
-                N,      nNodesX,    nNodesY, 
-                muX,    muY,        muZ, 
-                nRefX,  nRefY,      nRefZ,
-                delta, SigT):
-    # Convert 1D solution vector x to the cell array of angular flux fi
-    fi = numba_convert(solution, 
-                        N,      nNodesX,  nNodesY,
-                        muX,    muY,      muZ,
-                        nRefX,  nRefY,    nRefZ)
-    
-    nEq = 0
-    LHS_list = []
+def grad(n, ix, iy, fi, muX, muY, nRefX, nRefY, nNodesX, nNodesY, delta):
+    """
+    ---------------------------------------------------------------
+    Documenation for the grad() function
+    ---------------------------------------------------------------
+    Compute the spatial gradients of the angular flux with respect 
+    to x and y.
 
-    for iy in range(nNodesY):
-        for ix in range(nNodesX):
-            for n in range(N):
-                if muZ[n] >= 0 and not ((ix == 0 and muX[n] > 0) or (ix == nNodesX - 1 and muX[n] < 0) or
-                                        (iy == 0 and muY[n] > 0) or (iy == nNodesY - 1 and muY[n] < 0)):
-                    # Gradients
-                    dfidx, dfidy = numba_gradients(n, ix, iy, fi, muX, muY, nRefX, nRefY, nNodesX, nNodesY, delta)
-                    nEq += 1
-                    LHS_list.append(muX[n] * dfidx + muY[n] * dfidy + SigT[ix, iy] * fi[:, n, ix, iy])
+    ### Parameters:
+    - n (int): Angular flux index.
+    - ix (int): x-coordinate index.
+    - iy (int): y-coordinate index.
+    - fi (numpy.ndarray): 4D array representing the angular flux.
+    - muX (numpy.ndarray): Array of angular directions in the x-direction.
+    - muY (numpy.ndarray): Array of angular directions in the y-direction.
+    - nRefX (numpy.ndarray): Array of x-coordinate indices for angular flux reference.
+    - nRefY (numpy.ndarray): Array of y-coordinate indices for angular flux reference.
+    - nNodesX (int): Number of nodes in the x-direction.
+    - nNodesY (int): Number of nodes in the y-direction.
+    - delta (float): Spatial grid spacing.
 
-    # Make 1D vector
-    LHS = np.zeros(len(LHS_list) * len(LHS_list[0]))
-
-    for i in range(len(LHS_list)):
-        for j in range(len(LHS_list[i])):
-            LHS[i * len(LHS_list[i]) + j] = LHS_list[i][j]
-
-    return LHS
-
-@nb.njit
-def numba_gradients(n, ix, iy, fi, 
-                    muX, muY,
-                    nRefX, nRefY, 
-                    nNodesX, nNodesY, 
-                    delta):
-
+    ### Returns:
+    - dfidx (numpy.ndarray): Spatial gradient of angular flux with respect to x.
+    - dfidy (numpy.ndarray): Spatial gradient of angular flux with respect to y.
+    """
     #global g
 
     if muX[n] > 0:
@@ -5569,7 +5749,72 @@ def numba_gradients(n, ix, iy, fi,
     return dfidx, dfidy
 
 @nb.njit
+def calculate_DO_LHS(solution, N, nNodesX, nNodesY, muX, muY, muZ, nRefX, nRefY, nRefZ, delta, SigT):
+    """
+    ---------------------------------------------------------------
+    Documenation for the calculate_DO_LHS() function
+    ---------------------------------------------------------------
+    Calculate the left-hand side (LHS) of the discrete ordinates (DO) neutron transport equation.
+
+    ### Parameters:
+    - solution (numpy.ndarray): 1D array representing the flattened solution vector.
+    - N (int): Number of discrete ordinates.
+    - nNodesX (int): Number of nodes in the x-direction.
+    - nNodesY (int): Number of nodes in the y-direction.
+    - muX (numpy.ndarray): Array of angular directions in the x-direction.
+    - muY (numpy.ndarray): Array of angular directions in the y-direction.
+    - muZ (numpy.ndarray): Array of angular directions in the z-direction.
+    - nRefX (numpy.ndarray): Array of x-coordinate indices for angular flux reference.
+    - nRefY (numpy.ndarray): Array of y-coordinate indices for angular flux reference.
+    - nRefZ (numpy.ndarray): Array of z-coordinate indices for angular flux reference.
+    - delta (float): Spatial grid spacing.
+    - SigT (numpy.ndarray): Total cross section.
+
+    ### Returns:
+    - LHS (numpy.ndarray): 1D array representing the flattened LHS of the DO neutron transport equation.
+    """
+    # Convert 1D solution vector x to the cell array of angular flux fi
+    fi = reshapeAngFlux(solution, 
+                        N,      nNodesX,  nNodesY,
+                        muX,    muY,      muZ,
+                        nRefX,  nRefY,    nRefZ)
+    
+    nEq = 0
+    LHS_list = []
+
+    for iy in range(nNodesY):
+        for ix in range(nNodesX):
+            for n in range(N):
+                if muZ[n] >= 0 and not ((ix == 0 and muX[n] > 0) or (ix == nNodesX - 1 and muX[n] < 0) or
+                                        (iy == 0 and muY[n] > 0) or (iy == nNodesY - 1 and muY[n] < 0)):
+                    # Gradients
+                    dfidx, dfidy = grad(n, ix, iy, fi, muX, muY, nRefX, nRefY, nNodesX, nNodesY, delta)
+                    nEq += 1
+                    LHS_list.append(muX[n] * dfidx + muY[n] * dfidy + SigT[ix, iy] * fi[:, n, ix, iy])
+
+    # Make 1D vector
+    LHS = np.zeros(len(LHS_list) * len(LHS_list[0]))
+
+    for i in range(len(LHS_list)):
+        for j in range(len(LHS_list[i])):
+            LHS[i * len(LHS_list[i]) + j] = LHS_list[i][j]
+
+    return LHS
+
+@nb.njit
 def get_nonzero_nonnan_values(rho):
+    """
+    ---------------------------------------------------------------
+    Documenation for the get_nonzero_nonnan_values() function
+    ---------------------------------------------------------------
+    Retrieves the values of non-zero and non-NaN elements from a NumPy array.
+
+    ### Parameters:
+    - rho (numpy.ndarray): Input array from which to extract values.
+
+    ### Returns:
+    - numpy.ndarray: 1D array containing the non-zero and non-NaN values.
+    """
     # Get indices of non-zero elements using np.nonzero
     nonzero_indices = np.nonzero(rho)
 
@@ -5585,12 +5830,38 @@ def get_nonzero_nonnan_values(rho):
     return nonzero_nonnan_values
 
 @nb.njit
-def numba_bicgstab( x0,     b,  errtolInit, maxit,
-                    N,      nNodesX,    nNodesY, 
-                    muX,    muY,        muZ, 
-                    nRefX,  nRefY,      nRefZ,
-                    delta,  SigT
-                   ):
+def numba_bicgstab(x0, b, errtolInit, maxit,N, nNodesX, nNodesY, muX, muY, muZ, nRefX, nRefY, nRefZ, delta, SigT):
+    """
+    ------------------------------------------------------------------
+    Documenation for the numba_bicgstab() function
+    ------------------------------------------------------------------
+    Solves a linear system Ax = b using the Bi-CGSTAB iterative method 
+    with Numba acceleration.
+
+    ### Parameters:
+    - x0 (numpy.ndarray): Initial guess for the solution.
+    - b (numpy.ndarray): Right-hand side vector.
+    - errtolInit (float): Initial error tolerance.
+    - maxit (int): Maximum number of iterations allowed.
+    - N (int): Number of angular directions.
+    - nNodesX (int): Number of nodes in the x-direction.
+    - nNodesY (int): Number of nodes in the y-direction.
+    - muX, muY, muZ (numpy.ndarray): Angular direction cosines.
+    - nRefX, nRefY, nRefZ (numpy.ndarray): Reference indices.
+    - delta (float): Spatial discretization parameter.
+    - SigT (numpy.ndarray): Total cross-section values.
+
+    ### Returns:
+    - x (numpy.ndarray): Computed solution vector.
+    - error (list): List containing the error at each iteration.
+    - total_iters (int): Total number of iterations performed.
+
+    ### Notes:
+    This function was adapted by the MATLAB version of the `bicgstab.m` 
+    solver written by C. T. (Tim) Kelley. The original code can be found 
+    on his [website](https://ctk.math.ncsu.edu/). Look for the code under 
+    the [Linear Equations](https://ctk.math.ncsu.edu/matlab_roots.html) tab.
+    """
     # x0 = guess
     # b = RHS
     # atv = lambda x: funDO(x)
@@ -5604,7 +5875,7 @@ def numba_bicgstab( x0,     b,  errtolInit, maxit,
     rho = np.zeros(int(kmax + 1))
 
     if np.linalg.norm(x) != 0:
-        r = b - numba_funDO(x,
+        r = b - calculate_DO_LHS(x,
                             N,      nNodesX,    nNodesY, 
                             muX,    muY,        muZ, 
                             nRefX,  nRefY,      nRefZ,
@@ -5633,7 +5904,7 @@ def numba_bicgstab( x0,     b,  errtolInit, maxit,
 
         beta = (rho[k + 1] / rho[k]) * (alpha / omega)
         p = r + beta * (p - omega * v)
-        v = numba_funDO(p,
+        v = calculate_DO_LHS(p,
                         N,      nNodesX,    nNodesY, 
                         muX,    muY,        muZ, 
                         nRefX,  nRefY,      nRefZ,
@@ -5645,7 +5916,7 @@ def numba_bicgstab( x0,     b,  errtolInit, maxit,
 
         alpha = rho[k + 1] / tau
         s = r - alpha * v
-        t = numba_funDO(s,
+        t = calculate_DO_LHS(s,
                         N,      nNodesX,    nNodesY, 
                         muX,    muY,        muZ, 
                         nRefX,  nRefY,      nRefZ,
@@ -5783,289 +6054,356 @@ def plot_hdf2dict(file_name):
     plot_results(data)
 
 ##################################################################################################################
+def main():
+    """
+    ======================================================================
+    Documentation for the main section of the code:
+    ----------------------------------------------------------------------
+    Author: Siim Erik Pugal, 2023
+    ----------------------------------------------------------------------
+    The function calculates the neutron transport in a 2D (x,y) unit cell 
+    using the discrete ordinates method.
 
-# Start stopwatch
-start_time = t.time()
+    Without Optimization (Pure Python):
+        $ real	6m27,441s
+        $ user	24m31,806s
+        $ sys   23m34,812s
 
-# Global variables with geometry parameters, total cross section, and number of groups
-#global g, SigT, ng
-# input and initialize the geometry of the PWR unit cell (the function is in '..\00.Lib')
-lib_path = os.path.join('..', '00.Lib')
-file_path_PWR = os.path.join(lib_path, 'initPWR_like.h5')
+    With Numba Optimization:
+        $ real	2m54,812s
+        $ user	10m29,602s
+        $ sys    9m55,368s
+    ======================================================================
+    """
+    global g, FI
 
-if not os.path.exists(file_path_PWR):
-    # File doesn't exist, call initPWR_like() function
-    initPWR_like()
-# Read in the necessary data struct. Options: {fr, g, th}
-g = readPWR_like("g")
-#--------------------------------------------------------------------------
-# Path to macrosconp.pic cross section data:
-#import os
-#path_to_data = os.path.join('..', '02.Macro.XS.421g')
-# Fill the structures fuel, clad, and cool with the cross-section data
-fuel = hdf2dict('macro421_UO2_03__900K.h5')  # INPUT
-print(f"File 'macro421_UO2_03__900K.h5' has been read in.")
-clad = hdf2dict('macro421_Zry__600K.h5')     # INPUT
-print(f"File 'macro421_Zry__600K.h5' has been read in.")
-cool  = hdf2dict('macro421_H2OB__600K.h5')   # INPUT
-print(f"File 'macro421_H2OB__600K.h5' has been read in.")
+    # Start stopwatch
+    start_time = t.time()
 
-# Number of energy groups
-ng = fuel["ng"]
+    # input and initialize the geometry of the PWR unit cell (the function is in '..\00.Lib')
+    lib_path = os.path.join('..', '00.Lib')
+    file_path_PWR = os.path.join(lib_path, 'initPWR_like.h5')
 
-#--------------------------------------------------------------------------
-# Number of nodes
-#g = {}
-g['nNodesX'] = 10  # INPUT
-g['nNodesY'] = 2   # INPUT
+    if not os.path.exists(file_path_PWR):
+        # File doesn't exist, call initPWR_like() function
+        initPWR_like()
+    # Read in the necessary data struct. Options: {fr, g, th}
+    g = readPWR_like("g")
+    #--------------------------------------------------------------------------
+    # Fill the structures fuel, clad, and cool with the cross-section data
+    fuel = hdf2dict('macro421_UO2_03__900K.h5')  # INPUT
+    print(f"File 'macro421_UO2_03__900K.h5' has been read in.")
+    clad = hdf2dict('macro421_Zry__600K.h5')     # INPUT
+    print(f"File 'macro421_Zry__600K.h5' has been read in.")
+    cool  = hdf2dict('macro421_H2OB__600K.h5')   # INPUT
+    print(f"File 'macro421_H2OB__600K.h5' has been read in.")
 
-# Define the mesh step, nodes coordinates, and node volumes
-g['delta'] = 0.2  # cm
-volume = np.ones((g['nNodesX'], g['nNodesY'])) * g['delta']**2
-volume[[0, -1], :] /= 2
-volume[:, [0, -1]] /= 2
+    # Number of energy groups
+    ng = fuel["ng"]
 
-# Define the material for each node (0 is coolant, 1 is cladding, 2 is fuel)
-mat = np.array([[2, 2, 2, 2, 2, 1, 0, 0, 0, 0],
-                [2, 2, 2, 2, 2, 1, 0, 0, 0, 0]])
+    #--------------------------------------------------------------------------
+    # Number of nodes
+    #g = {}
+    g['nNodesX'] = 10  # INPUT
+    g['nNodesY'] = 2   # INPUT
 
-#--------------------------------------------------------------------------
-# Path to Lebedev quadrature function:
-# path_to_lebedev = os.path.join('..', '00.Lebedev')
+    # Define the mesh step, nodes coordinates, and node volumes
+    g['delta'] = 0.2  # cm  # Sets the spatial step size (grid spacing) to 0.2 cm
+    volume = np.ones((g['nNodesX'], g['nNodesY'])) * g['delta']**2  # the volumes of each node in the spatial grid
+    volume[[0, -1], :] /= 2 # The nodes at the boundaries only cover half 
+    volume[:, [0, -1]] /= 2 # of the volume compared to the interior nodes.
 
-# Number of discrete ordinates, an even integer (possible values are
-# determined by the Lebedev quadratures: 6, 14, 26, 38, 50, 74, 86, 110,
-# 146, 170, 194, 230, 266, 302, 350, 434, 590, 770, 974, 1202, 1454, 1730,
-# 2030, 2354, 2702, 3074, 3470, 3890, 4334, 4802, 5294, 5810):
-g['N'] = 111        # INPUT
+    # Define the material for each node (0 is coolant, 1 is cladding, 2 is fuel)
+    mat = np.array([[2, 2, 2, 2, 2, 1, 0, 0, 0, 0],
+                    [2, 2, 2, 2, 2, 1, 0, 0, 0, 0]])
+
+    #--------------------------------------------------------------------------
+    # Number of discrete ordinates, an even integer (possible values are
+    # determined by the Lebedev quadratures: 6, 14, 26, 38, 50, 74, 86, 110,
+    # 146, 170, 194, 230, 266, 302, 350, 434, 590, 770, 974, 1202, 1454, 1730,
+    # 2030, 2354, 2702, 3074, 3470, 3890, 4334, 4802, 5294, 5810):
+    g['N'] = 110        # INPUT
 
 
-# Get leb["x"], leb["y"] and leb["z"] values for the g["N"] base points on a unit sphere
-# as well as the associated weights leb["w"] (the unit sphere area corresponding
-# to the base points, sum up to 4*np.pi) using the Lebedev quadrature rules.
-#from getLebedevSphere import getLebedevSphere  # Assuming the function is available
-leb = getLebedevSphere(g['N'])
-g['muX'] = leb['x']
-g['muY'] = leb['y']
-g['muZ'] = leb['z']
-g['W'] = leb['w']
+    # Get leb["x"], leb["y"] and leb["z"] values for the g["N"] base points on a unit sphere
+    # as well as the associated weights leb["w"] (the unit sphere area corresponding
+    # to the base points, sum up to 4*np.pi) using the Lebedev quadrature rules.
+    leb = getLebedevSphere(g['N'])
+    g['muX'] = leb['x']
+    g['muY'] = leb['y']
+    g['muZ'] = leb['z']
+    g['W'] = leb['w']
 
-# Find the reflective directions for X, Y, and Z directions
-g['nRefX'] = np.zeros(g['N'], dtype=int)
-g['nRefY'] = np.zeros(g['N'], dtype=int)
-g['nRefZ'] = np.zeros(g['N'], dtype=int)
+    # Find the reflective directions for X, Y, and Z directions
+    g['nRefX'] = np.zeros(g['N'], dtype=int)
+    g['nRefY'] = np.zeros(g['N'], dtype=int)
+    g['nRefZ'] = np.zeros(g['N'], dtype=int)
 
-# Find the reflective directions for X, Y, and Z directions
-for n in range(g['N']):
-    for nn in range(g['N']):
-        if np.allclose(g['muX'][nn], -g['muX'][n]) and np.allclose(g['muY'][nn], g['muY'][n]) and np.allclose(g['muZ'][nn], g['muZ'][n]):
-            g['nRefX'][n] = nn
-        if np.allclose(g['muY'][nn], -g['muY'][n]) and np.allclose(g['muX'][nn], g['muX'][n]) and np.allclose(g['muZ'][nn], g['muZ'][n]):
-            g['nRefY'][n] = nn
-        if np.allclose(g['muZ'][nn], -g['muZ'][n]) and np.allclose(g['muX'][nn], g['muX'][n]) and np.allclose(g['muY'][nn], g['muY'][n]):
-            g['nRefZ'][n] = nn
+    """
+    ===========================================================
+    # Find the reflective directions for X, Y, and Z directions
+    -----------------------------------------------------------
+    In neutron transport simulations, especially when using the 
+    discrete ordinates method, it is common to model reflective 
+    boundary conditions. Neutrons that reach a boundary and are 
+    not absorbed or leaked are often reflected back into the 
+    domain. The purpose of the reflective directions is to 
+    identify the corresponding discrete ordinate that 
+    represents the direction opposite to the current ordinate.
+    -----------------------------------------------------------
+    Breaking down the code:
 
-#--------------------------------------------------------------------------
-# Scattering source anisotropy: 0 -- P0 (isotropic), 1 -- P1
-g['L'] = 0  # INPUT
-# Initialize the 'R' key in the 'g' dictionary
-g['R'] = np.zeros((g['N'], int(2*g['L'] + 1), int(2*g['L'] + 1)))
-# Calculate spherical harmonics for every ordinate
-for n in range(g['N']):
-    #g['R'][n] = np.zeros((2 * g['L'] + 1, 2 * g['L'] + 1))
-    for jLgn in range(g['L'] + 1):
-        for m in range(-jLgn, jLgn + 1):
-            if jLgn == 0 and m == 0:
-                g['R'][n][jLgn, jLgn + m] = 1
-            elif jLgn == 1 and m == -1:
-                g['R'][n][jLgn, jLgn + m] = g['muZ'][n]
-            elif jLgn == 1 and m == 0:
-                g['R'][n][jLgn, jLgn + m] = g['muX'][n]
-            elif jLgn == 1 and m == 1:
-                g['R'][n][jLgn, jLgn + m] = g['muY'][n]
+    The loop for n in range(g['N']): iterates over each discrete 
+    ordinate in the set of discrete ordinates defined for neutron 
+    transport.
 
-#--------------------------------------------------------------------------
-# Construct the cross sections
-SigA, SigP, chi, SigT = np.zeros((10, 2, 421)), np.zeros((10, 2, 421)), np.zeros((10, 2, 421)), np.zeros((10, 2, 421))
-Sig2 = np.zeros((10, 2, 421, 421))
-SigS = np.zeros((jLgn+1, 10, 2, 421, 421))
-for iy in range(g['nNodesY']):
-    for ix in range(g['nNodesX']):
-        if mat[iy, ix] == 2:  # fuel
-            SigA[ix, iy] = fuel['SigF'] + fuel['SigC'] + fuel['SigL'] + np.sum(fuel["sig2_G"]["sparse_Sig2"], axis=1)
-            for jLgn in range(g['L'] + 1):
-                SigS[jLgn][ix, iy] = fuel['sigS_G'][f"sparse_SigS[{jLgn}]"]
-            Sig2[ix, iy] = fuel["sig2_G"]["sparse_Sig2"]
-            SigP[ix, iy] = fuel['SigP']
-            chi[ix, iy] = fuel['chi']
-        elif mat[iy, ix] == 1:  # cladding
-            SigA[ix, iy] = clad['SigF'] + clad['SigC'] + clad['SigL'] + np.sum(clad["sig2_G"]["sparse_Sig2"], axis=1)
-            for jLgn in range(g['L'] + 1):
-                SigS[jLgn][ix, iy] = clad['sigS_G'][f"sparse_SigS[{jLgn}]"]
-            Sig2[ix, iy] = clad["sig2_G"]["sparse_Sig2"]
-            SigP[ix, iy] = clad['SigP']
-            chi[ix, iy] = clad['chi']
-        elif mat[iy, ix] == 0:  # coolant
-            SigA[ix, iy] = cool['SigF'] + cool['SigC'] + cool['SigL'] + np.sum(cool["sig2_G"]["sparse_Sig2"], axis=1)
-            for jLgn in range(g['L'] + 1):
-                SigS[jLgn][ix, iy] = cool['sigS_G'][f"sparse_SigS[{jLgn}]"]
-            Sig2[ix, iy] = cool["sig2_G"]["sparse_Sig2"]
-            SigP[ix, iy] = cool['SigP']
-            chi[ix, iy] = cool['chi']
+    The inner loop for nn in range(g['N']): iterates over the 
+    same set of discrete ordinates to compare them with the 
+    current ordinate g['muX'][n], g['muY'][n], g['muZ'][n].
 
-        # Total cross section
-        SigT[ix, iy] = SigA[ix, iy] + np.sum(SigS[0][ix, iy], axis=1)
+    The if statements check if the current ordinate 
+        (g['muX'][n], g['muY'][n], g['muZ'][n]) 
+    is approximately equal to the negation of another ordinate 
+        (-g['muX'][nn], -g['muY'][nn], -g['muZ'][nn]). 
+    If all three components of the current ordinate are close 
+    to the negation of the corresponding components of another 
+    ordinate, it means they are opposite directions.
 
-#--------------------------------------------------------------------------
-# Count the number of equations
-nEq = 0
-for iy in range(1, g['nNodesY'] + 1):
-    for ix in range(1, g['nNodesX'] + 1):
-        for n in range(1, g['N'] + 1):
-            if g['muZ'][n - 1] >= 0 and not (ix == 1 and g['muX'][n - 1] > 0) and not   \
-                (ix == g['nNodesX'] and g['muX'][n - 1] < 0) and not (iy == 1 and       \
-                g['muY'][n - 1] > 0) and not (iy == g['nNodesY'] and g['muY'][n - 1] < 0):
-                nEq = nEq + ng
+    If a match is found for the X, Y, or Z direction, the index
+    nn of the matching ordinate is stored in g['nRefX'][n], 
+    g['nRefY'][n], or g['nRefZ'][n], respectively.
+    ===========================================================
+    """
+    for n in range(g['N']):
+        for nn in range(g['N']):
+            if np.allclose(g['muX'][nn], -g['muX'][n]) and np.allclose(g['muY'][nn], g['muY'][n]) and np.allclose(g['muZ'][nn], g['muZ'][n]):
+                g['nRefX'][n] = nn
+            if np.allclose(g['muY'][nn], -g['muY'][n]) and np.allclose(g['muX'][nn], g['muX'][n]) and np.allclose(g['muZ'][nn], g['muZ'][n]):
+                g['nRefY'][n] = nn
+            if np.allclose(g['muZ'][nn], -g['muZ'][n]) and np.allclose(g['muX'][nn], g['muX'][n]) and np.allclose(g['muY'][nn], g['muY'][n]):
+                g['nRefZ'][n] = nn
 
-#--------------------------------------------------------------------------
-#keff = []
-keff = np.empty((0,))
-residual = []
+    #--------------------------------------------------------------------------
+    # Scattering source anisotropy: 0 -- P0 (isotropic), 1 -- P1 (anisotropic)
+    g['L'] = 0  # INPUT
+    # Initialize the 'R' key in the 'g' dictionary
+    g['R'] = np.zeros((g['N'], int(2*g['L'] + 1), int(2*g['L'] + 1)))
+    # Calculate spherical harmonics for every ordinate
+    for n in range(g['N']):
+        #g['R'][n] = np.zeros((2 * g['L'] + 1, 2 * g['L'] + 1))
+        for jLgn in range(g['L'] + 1):
+            for m in range(-jLgn, jLgn + 1):
+                if jLgn == 0 and m == 0:
+                    g['R'][n][jLgn, jLgn + m] = 1
+                elif jLgn == 1 and m == -1:
+                    g['R'][n][jLgn, jLgn + m] = g['muZ'][n]
+                elif jLgn == 1 and m == 0:
+                    g['R'][n][jLgn, jLgn + m] = g['muX'][n]
+                elif jLgn == 1 and m == 1:
+                    g['R'][n][jLgn, jLgn + m] = g['muY'][n]
 
-# Number of outer iterations
-numIter = 200  # INPUT
+    #--------------------------------------------------------------------------
+    """
+    ===========================================================================
+    Construct the cross sections
+    ---------------------------------------------------------------------------
+    Essentially, this section calculates and populates arrays with various 
+    cross-section parameters for each node in the spatial grid based on the 
+    material type (fuel, cladding, or coolant) at that node. 
+    ===========================================================================
+    """
+    SigA, SigP, chi, SigT = np.zeros((10, 2, 421)), np.zeros((10, 2, 421)), np.zeros((10, 2, 421)), np.zeros((10, 2, 421))
+    Sig2 = np.zeros((10, 2, 421, 421))
+    SigS = np.zeros((jLgn+1, 10, 2, 421, 421))
+    for iy in range(g['nNodesY']):
+        for ix in range(g['nNodesX']):
+            if mat[iy, ix] == 2:  # fuel
+                SigA[ix, iy] = fuel['SigF'] + fuel['SigC'] + fuel['SigL'] + np.sum(fuel["sig2_G"]["sparse_Sig2"], axis=1)
+                for jLgn in range(g['L'] + 1):
+                    SigS[jLgn][ix, iy] = fuel['sigS_G'][f"sparse_SigS[{jLgn}]"]
+                Sig2[ix, iy] = fuel["sig2_G"]["sparse_Sig2"]
+                SigP[ix, iy] = fuel['SigP']
+                chi[ix, iy] = fuel['chi']
+            elif mat[iy, ix] == 1:  # cladding
+                SigA[ix, iy] = clad['SigF'] + clad['SigC'] + clad['SigL'] + np.sum(clad["sig2_G"]["sparse_Sig2"], axis=1)
+                for jLgn in range(g['L'] + 1):
+                    SigS[jLgn][ix, iy] = clad['sigS_G'][f"sparse_SigS[{jLgn}]"]
+                Sig2[ix, iy] = clad["sig2_G"]["sparse_Sig2"]
+                SigP[ix, iy] = clad['SigP']
+                chi[ix, iy] = clad['chi']
+            elif mat[iy, ix] == 0:  # coolant
+                SigA[ix, iy] = cool['SigF'] + cool['SigC'] + cool['SigL'] + np.sum(cool["sig2_G"]["sparse_Sig2"], axis=1)
+                for jLgn in range(g['L'] + 1):
+                    SigS[jLgn][ix, iy] = cool['sigS_G'][f"sparse_SigS[{jLgn}]"]
+                Sig2[ix, iy] = cool["sig2_G"]["sparse_Sig2"]
+                SigP[ix, iy] = cool['SigP']
+                chi[ix, iy] = cool['chi']
 
-# Set the initial flux equal 1.
-solution = np.ones(nEq)
+            # Total cross section
+            SigT[ix, iy] = SigA[ix, iy] + np.sum(SigS[0][ix, iy], axis=1)
 
-# Main iteration loop
-for nIter in range(1, numIter + 1):
-    #-----------------------------------------------------------------------
-    # Make a guess for the solution
-    # Just take the solution from the previous iteration as a guess
-    guess = solution.copy()
-    #-----------------------------------------------------------------------
-    # Convert 1D guess vector to the array of angular flux fi
-    fi = numba_convert(   guess,
-                    g["N"], g["nNodesX"], g["nNodesY"],
-                    g["muX"], g["muY"], g["muZ"],
-                    g["nRefX"], g["nRefY"], g["nRefZ"]
-                )
-    #-----------------------------------------------------------------------
-    fiL, FI = calc_fiL_FI(fi, g['nNodesX'], g['nNodesY'], g['L'], g['N'], g['R'], g['W'])
-    #-----------------------------------------------------------------------
-    keff_value = calculate_keff(SigP, Sig2, FI, volume, SigA, g['nNodesY'], g['nNodesX'])
-    #keff.append(keff_value)
-    keff = np.append(keff, keff_value)
-    print(f'keff = {keff[-1]:9.5f} #nOuter = {nIter:3}', end=' ')
+    #--------------------------------------------------------------------------
+    """
+    ===========================================================================
+    Count the number of equations
+    ---------------------------------------------------------------------------
+    This section calculates the total number of equations (nEq) to be solved in 
+    the neutron transport simulation. It takes into account the spatial grid, 
+    discrete ordinates, and certain conditions associated with the boundary and 
+    angular quadrature. This count is crucial for properly sizing the solution 
+    vector and matrices in the numerical solver.
+    ===========================================================================
+    """
+    nEq = 0
+    for iy in range(1, g['nNodesY'] + 1):
+        for ix in range(1, g['nNodesX'] + 1):
+            for n in range(1, g['N'] + 1):
+                if g['muZ'][n - 1] >= 0 and not (ix == 1 and g['muX'][n - 1] > 0) and not   \
+                    (ix == g['nNodesX'] and g['muX'][n - 1] < 0) and not (iy == 1 and       \
+                    g['muY'][n - 1] > 0) and not (iy == g['nNodesY'] and g['muY'][n - 1] < 0):
+                    nEq = nEq + ng
 
-    #-----------------------------------------------------------------------
-    # Calculate fission, (n,2n) and scattering neutron sources
-    # Initialize the total neutron source vector and nEq
+    #--------------------------------------------------------------------------
+    #keff = []
+    keff = np.empty((0,))   # Empty NumPy 1d-array with undefined size
+    residual = []
 
-    qT_list = compute_qT(FI, fiL, chi, keff, SigP, Sig2, SigS, g['N'], g['L'], g['R'], 
-                    g['muX'], g['muY'], g['muZ'], g['nNodesX'], g['nNodesY'])
-    qT = np.array(qT_list)
+    # Number of outer iterations
+    numIter = 200  # INPUT
 
-    # Reshape qT into a column vector
-    RHS = calculate_RHS(qT)
+    # Set the initial flux equal to 1
+    solution = np.ones(nEq)
 
-    #-----------------------------------------------------------------------
-    # Relative residual reduction factor
-    errtol = 1.e-4                                                      # INPUT
-    # maximum number of iterations
-    maxit = 2000                                                        # INPUT
+    # Main iteration loop
+    for nIter in range(1, numIter + 1):
+        #-----------------------------------------------------------------------
+        # Make a guess for the solution
+        # Just take the solution from the previous iteration as a guess
+        guess = solution.copy()
+        #-----------------------------------------------------------------------
+        # Convert 1D guess vector to the array of angular flux fi
+        fi = reshapeAngFlux( guess,
+                            g["N"], g["nNodesX"], g["nNodesY"],
+                            g["muX"], g["muY"], g["muZ"],
+                            g["nRefX"], g["nRefY"], g["nRefZ"])
+        #-----------------------------------------------------------------------
+        # Calculate Legendre moment of angular and scalar flux
+        fiL, FI = calc_fiL_FI(fi, g['nNodesX'], g['nNodesY'], g['L'], g['N'], g['R'], g['W'])
+        #-----------------------------------------------------------------------
+        # Calculate and print out the k_eff value
+        keff_value = calculate_keff(SigP, Sig2, FI, volume, SigA, g['nNodesY'], g['nNodesX'])
+        #keff.append(keff_value)
+        keff = np.append(keff, keff_value)
+        print(f'keff = {keff[-1]:9.5f} #nOuter = {nIter:3}', end=' ')
 
-    params = [errtol, maxit]
+        #-----------------------------------------------------------------------
+        # Calculate fission, (n,2n) and scattering neutron sources
+        # Initialize the total neutron source vector and nEq
+        qT_list = compute_qT(FI, fiL, chi, keff, SigP, Sig2, SigS, g['N'], g['L'], g['R'], 
+                        g['muX'], g['muY'], g['muZ'], g['nNodesX'], g['nNodesY'])
+        qT = np.array(qT_list)
 
-    # Call the Numba CUSTOM bicgstab solver
-    solution, r, nInner = numba_bicgstab(guess,     RHS,    errtol, maxit,
-                                        g["N"],      g["nNodesX"],  g["nNodesY"], 
-                                        g["muX"],    g["muY"],      g["muZ"], 
-                                        g["nRefX"],  g["nRefY"],    g["nRefZ"],
-                                        g["delta"], 
-                                        SigT
-                                    )
+        # Reshape qT into a column vector
+        RHS = calculate_RHS(qT)
 
-    # Compute the relative residual error (residual) for this iteration
-    residual.append(r[-1]/np.linalg.norm(RHS))
+        #-----------------------------------------------------------------------
+        # Relative residual reduction factor
+        errtol = 1.e-4                                                      # INPUT
+        # maximum number of iterations
+        maxit = 2000                                                        # INPUT
 
-    # Display the results
-    print('nInner = %5.1f residual = %11.5e target = %11.5e' % (nInner, residual[-1], errtol))
+        params = [errtol, maxit]
 
-    if nInner <= errtol:
-        break
-print("Iterations finished.")
-#stop_time = t.time()
-#print(f'Elapsed time: {stop_time-start_time}')
-#print("Solution:", solution)
-#---------------------------------------------------------------------------
-# Find integral scalar flux in fuel, cladding, and coolant (average spectra)
-vol_fuel = np.sum(volume[0:5, :])
-vol_clad = np.sum(volume[5, :])
-vol_cool = np.sum(volume[6:, :])
+        # Call the Numba CUSTOM bicgstab solver
+        solution, r, nInner = numba_bicgstab(guess,     RHS,    errtol, maxit,
+                                            g["N"],      g["nNodesX"],  g["nNodesY"], 
+                                            g["muX"],    g["muY"],      g["muZ"], 
+                                            g["nRefX"],  g["nRefY"],    g["nRefZ"],
+                                            g["delta"], 
+                                            SigT)
 
-FIFuel = np.zeros(ng)
-FIClad = np.zeros(ng)
-FICool = np.zeros(ng)
+        # Compute the relative residual error (residual) for this iteration
+        residual.append(r[-1]/np.linalg.norm(RHS))
 
-for iy in range(g["nNodesY"]):
-    for ix in range(g["nNodesX"]):
-        if mat[iy, ix] == 2:
-            FIFuel += FI[ix, iy] * volume[ix, iy] / vol_fuel
-        elif mat[iy, ix] == 1:
-            FIClad += FI[ix, iy] * volume[ix, iy] / vol_clad
-        elif mat[iy, ix] == 0:
-            FICool += FI[ix, iy] * volume[ix, iy] / vol_cool
+        # Display the results
+        print('nInner = %5.1f residual = %11.5e target = %11.5e' % (nInner, residual[-1], errtol))
 
-# Open the HDF5 file for writing
-with h5py.File('resultsPWR.h5', 'w') as file:
-    file.create_dataset('N', data=np.array([g["N"]]))  # g["N"]: Number of ordinates
-    file.create_dataset('L', data=np.array([g["L"]]))  # g["L"]: Scattering source anisotropy approximation
+        if nInner <= errtol:
+            break
+    print("Iterations finished.")
+    #stop_time = t.time()
+    #print(f'Elapsed time: {stop_time-start_time}')
+    #print("Solution:", solution)
+    #---------------------------------------------------------------------------
+    # Find integral scalar flux in fuel, cladding, and coolant (average spectra)
+    vol_fuel = np.sum(volume[0:5, :])
+    vol_clad = np.sum(volume[5, :])
+    vol_cool = np.sum(volume[6:, :])
 
-    # Stop stopwatch
-    stop_time = t.time()
-    elapsedTime = stop_time-start_time
+    FIFuel = np.zeros(ng)
+    FIClad = np.zeros(ng)
+    FICool = np.zeros(ng)
 
-    file.create_dataset('elapsedTime', data=np.array([elapsedTime]))
+    for iy in range(g["nNodesY"]):
+        for ix in range(g["nNodesX"]):
+            if mat[iy, ix] == 2:
+                FIFuel += FI[ix, iy] * volume[ix, iy] / vol_fuel
+            elif mat[iy, ix] == 1:
+                FIClad += FI[ix, iy] * volume[ix, iy] / vol_clad
+            elif mat[iy, ix] == 0:
+                FICool += FI[ix, iy] * volume[ix, iy] / vol_cool
 
-    file.create_dataset('keff', data=np.array([keff[-1]]))
-    file.create_dataset('keffHistory', data=keff)
+    # Open the HDF5 file for writing
+    with h5py.File('resultsPWR.h5', 'w') as file:
+        file.create_dataset('N', data=np.array([g["N"]]))  # g["N"]: Number of ordinates
+        file.create_dataset('L', data=np.array([g["L"]]))  # g["L"]: Scattering source anisotropy approximation
 
-    file.create_dataset('residualHistory', data=residual)
+        # Stop stopwatch
+        stop_time = t.time()
+        elapsedTime = stop_time-start_time
 
-    x = np.arange(0, g["delta"] * g["nNodesX"], g["delta"])
-    file.create_dataset('x', data=x)
+        file.create_dataset('elapsedTime', data=np.array([elapsedTime]))
 
-    eg = (fuel["eg"][0:ng] + fuel["eg"][1:ng+1]) / 2.0
-    file.create_dataset('eg', data=eg)
+        file.create_dataset('keff', data=np.array([keff[-1]]))
+        file.create_dataset('keffHistory', data=keff)
 
-    du = np.log(fuel["eg"][1:ng+1] / fuel["eg"][0:ng])
-    FIFuel_du = FIFuel[0:ng] / du
-    FIClad_du = FIClad[0:ng] / du
-    FICool_du = FICool[0:ng] / du
-    file.create_dataset('FIFuel_du', data=FIFuel_du)
-    file.create_dataset('FIClad_du', data=FIClad_du)
-    file.create_dataset('FICool_du', data=FICool_du)
+        file.create_dataset('residualHistory', data=residual)
 
-    FI_T = []
-    FI_R = []
-    FI_F = []
+        x = np.arange(0, g["delta"] * g["nNodesX"], g["delta"])
+        file.create_dataset('x', data=x)
 
-    for ix in range(g["nNodesX"]):
-        FI_T.append(np.sum(FI[(ix, 0)][0:50]))
-        FI_R.append(np.sum(FI[(ix, 0)][50:288]))
-        FI_F.append(np.sum(FI[(ix, 0)][288:421]))
+        eg = (fuel["eg"][0:ng] + fuel["eg"][1:ng+1]) / 2.0
+        file.create_dataset('eg', data=eg)
 
-    file.create_dataset('FI_T', data=FI_T)
-    file.create_dataset('FI_R', data=FI_R)
-    file.create_dataset('FI_F', data=FI_F)
+        du = np.log(fuel["eg"][1:ng+1] / fuel["eg"][0:ng])
+        FIFuel_du = FIFuel[0:ng] / du
+        FIClad_du = FIClad[0:ng] / du
+        FICool_du = FICool[0:ng] / du
+        file.create_dataset('FIFuel_du', data=FIFuel_du)
+        file.create_dataset('FIClad_du', data=FIClad_du)
+        file.create_dataset('FICool_du', data=FICool_du)
 
-#--------------------------------------------------------------------------
-# Plot the mesh
-plot2D(g["nNodesX"], g["nNodesY"], g["delta"], mat, 'Unit cell: materials', 'DO_01_mesh.pdf')
+        FI_T = []
+        FI_R = []
+        FI_F = []
 
-#--------------------------------------------------------------------------
-# Plot the results
-plot_hdf2dict("resultsPWR.h5")
-print("Plotting finished.")
+        for ix in range(g["nNodesX"]):
+            FI_T.append(np.sum(FI[(ix, 0)][0:50]))
+            FI_R.append(np.sum(FI[(ix, 0)][50:288]))
+            FI_F.append(np.sum(FI[(ix, 0)][288:421]))
+
+        file.create_dataset('FI_T', data=FI_T)
+        file.create_dataset('FI_R', data=FI_R)
+        file.create_dataset('FI_F', data=FI_F)
+
+    #--------------------------------------------------------------------------
+    # Plot the mesh
+    plot2D(g["nNodesX"], g["nNodesY"], g["delta"], mat, 'Unit cell: materials', 'DO_01_mesh.pdf')
+
+    #--------------------------------------------------------------------------
+    # Plot the results
+    plot_hdf2dict("resultsPWR.h5")
+    print("Plotting finished.")
+
+if __name__ == '__main__':
+    main()
