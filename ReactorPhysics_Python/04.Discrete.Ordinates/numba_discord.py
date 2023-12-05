@@ -5342,7 +5342,7 @@ def reshapeAngFlux(solution, N, nNodesX, nNodesY,
     -------------------------------------------------------------------
     Documenation for the reshapeAngFlux() function
     -------------------------------------------------------------------
-    Reshapes the flattened solution array into a 3D array, aligning it 
+    Reshapes the flattened solution array into a 4D array, aligning it 
     with the geometry of the problem and applying boundary conditions 
     to ensure physical consistency in the angular flux distribution.
 
@@ -5360,7 +5360,7 @@ def reshapeAngFlux(solution, N, nNodesX, nNodesY,
     - nRefZ (numpy.ndarray): Reference indices for angular flux in the Z direction.
 
     ### Returns:
-    - numpy.ndarray: 3D array representing the reshaped angular flux with 
+    - numpy.ndarray: 4D array representing the reshaped angular flux with 
     applied boundary conditions.
 
     ### Example:
@@ -5476,7 +5476,7 @@ def calculate_keff(SigP, Sig2, FI, volume, SigA, nNodesY, nNodesX):
     Documenation for the calculate_keff() function
     ------------------------------------------------------------------
     Calculates the effective neutron multiplication factor (k_eff) for 
-    a nuclear reactor.
+    the nuclear reactor.
 
     ### Parameters:
     - SigP (numpy.ndarray): 2D array representing the macroscopic Production 
@@ -5703,7 +5703,7 @@ def grad(n, ix, iy, fi, muX, muY, nRefX, nRefY, nNodesX, nNodesY, delta):
     to x and y.
 
     ### Parameters:
-    - n (int): Angular flux index.
+    - n (int): Discrete Ordinate number.
     - ix (int): x-coordinate index.
     - iy (int): y-coordinate index.
     - fi (numpy.ndarray): 4D array representing the angular flux.
@@ -5749,10 +5749,10 @@ def grad(n, ix, iy, fi, muX, muY, nRefX, nRefY, nNodesX, nNodesY, delta):
     return dfidx, dfidy
 
 @nb.njit
-def calculate_DO_LHS(solution, N, nNodesX, nNodesY, muX, muY, muZ, nRefX, nRefY, nRefZ, delta, SigT):
+def calculate_LHS(solution, N, nNodesX, nNodesY, muX, muY, muZ, nRefX, nRefY, nRefZ, delta, SigT):
     """
     ---------------------------------------------------------------
-    Documenation for the calculate_DO_LHS() function
+    Documenation for the calculate_LHS() function
     ---------------------------------------------------------------
     Calculate the left-hand side (LHS) of the discrete ordinates (DO) neutron transport equation.
 
@@ -5836,7 +5836,11 @@ def numba_bicgstab(x0, b, errtolInit, maxit,N, nNodesX, nNodesY, muX, muY, muZ, 
     Documenation for the numba_bicgstab() function
     ------------------------------------------------------------------
     Solves a linear system Ax = b using the Bi-CGSTAB iterative method 
-    with Numba acceleration.
+    with Numba acceleration. This version of the solver does not take 
+    in a function for the left had side of the equation, as is it 
+    usually common do so. For stability reasons, the 1D-vector for the 
+    left-hand side function is already hard-coded into the solver. For
+    further documentation, look into the `calculate_LHS()` function.
 
     ### Parameters:
     - x0 (numpy.ndarray): Initial guess for the solution.
@@ -5875,7 +5879,7 @@ def numba_bicgstab(x0, b, errtolInit, maxit,N, nNodesX, nNodesY, muX, muY, muZ, 
     rho = np.zeros(int(kmax + 1))
 
     if np.linalg.norm(x) != 0:
-        r = b - calculate_DO_LHS(x,
+        r = b - calculate_LHS(x,
                             N,      nNodesX,    nNodesY, 
                             muX,    muY,        muZ, 
                             nRefX,  nRefY,      nRefZ,
@@ -5904,7 +5908,7 @@ def numba_bicgstab(x0, b, errtolInit, maxit,N, nNodesX, nNodesY, muX, muY, muZ, 
 
         beta = (rho[k + 1] / rho[k]) * (alpha / omega)
         p = r + beta * (p - omega * v)
-        v = calculate_DO_LHS(p,
+        v = calculate_LHS(p,
                         N,      nNodesX,    nNodesY, 
                         muX,    muY,        muZ, 
                         nRefX,  nRefY,      nRefZ,
@@ -5916,7 +5920,7 @@ def numba_bicgstab(x0, b, errtolInit, maxit,N, nNodesX, nNodesY, muX, muY, muZ, 
 
         alpha = rho[k + 1] / tau
         s = r - alpha * v
-        t = calculate_DO_LHS(s,
+        t = calculate_LHS(s,
                         N,      nNodesX,    nNodesY, 
                         muX,    muY,        muZ, 
                         nRefX,  nRefY,      nRefZ,
@@ -6134,11 +6138,6 @@ def main():
     g['muZ'] = leb['z']
     g['W'] = leb['w']
 
-    # Find the reflective directions for X, Y, and Z directions
-    g['nRefX'] = np.zeros(g['N'], dtype=int)
-    g['nRefY'] = np.zeros(g['N'], dtype=int)
-    g['nRefZ'] = np.zeros(g['N'], dtype=int)
-
     """
     ===========================================================
     # Find the reflective directions for X, Y, and Z directions
@@ -6174,6 +6173,10 @@ def main():
     g['nRefY'][n], or g['nRefZ'][n], respectively.
     ===========================================================
     """
+    # Find the reflective directions for X, Y, and Z directions
+    g['nRefX'] = np.zeros(g['N'], dtype=int)
+    g['nRefY'] = np.zeros(g['N'], dtype=int)
+    g['nRefZ'] = np.zeros(g['N'], dtype=int)
     for n in range(g['N']):
         for nn in range(g['N']):
             if np.allclose(g['muX'][nn], -g['muX'][n]) and np.allclose(g['muY'][nn], g['muY'][n]) and np.allclose(g['muZ'][nn], g['muZ'][n]):
@@ -6264,7 +6267,8 @@ def main():
                     nEq = nEq + ng
 
     #--------------------------------------------------------------------------
-    #keff = []
+    # keff needs to be defined this way, otherwise it will cause a crash 
+    # in the compute_qT() function. Otherwise we would use keff = [].
     keff = np.empty((0,))   # Empty NumPy 1d-array with undefined size
     residual = []
 
