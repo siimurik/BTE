@@ -4,8 +4,9 @@ cimport numpy as np
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def getLebedevReccurencePoints(int type, int start, double a, double b, double v, np.ndarray[double, ndim=1] leb):
-    c = 0.0
+cpdef getLebedevReccurencePoints(int type, int start, double a, double b, double v, dict leb):
+    cdef double c
+    cdef double pi = np.pi
 
     if type == 1:
         a = 1.0
