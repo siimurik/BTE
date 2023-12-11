@@ -3,7 +3,8 @@ import h5py
 import time as t
 import numpy as np
 import numba as nb
-from numba import prange
+#import lebedev as l
+#from numba import prange
 import matplotlib.pyplot as plt
 from pyXSteam.XSteam import XSteam
 
@@ -532,6 +533,15 @@ def getLebedevReccurencePoints(type, start, a, b, v, leb):
     return leb, start
 
 def getLebedevSphere(degree):
+    """
+    As per Professor Wuellen's request, any papers published using this code or its derivatives 
+    are requested to include the following citation:
+
+    [1] V.I. Lebedev, and D.N. Laikov
+    "A quadrature formula for the sphere of the 131st
+    algebraic order of accuracy"
+    Doklady Mathematics, Vol. 59, No. 3, 1999, pp. 477-481.
+    """
     # Function implementation (as shown in the previous response)
 
     leb_tmp = {
@@ -5835,12 +5845,12 @@ def numba_bicgstab(x0, b, errtolInit, maxit,N, nNodesX, nNodesY, muX, muY, muZ, 
     ------------------------------------------------------------------
     Documenation for the numba_bicgstab() function
     ------------------------------------------------------------------
-    Solves a linear system Ax = b using the Bi-CGSTAB iterative method 
-    with Numba acceleration. This version of the solver does not take 
-    in a function for the left had side of the equation, as is it 
-    usually common do so. For stability reasons, the 1D-vector for the 
-    left-hand side function is already hard-coded into the solver. For
-    further documentation, look into the `calculate_LHS()` function.
+    Solves a linear or nonlinear system Ax = b using the Bi-CGSTAB 
+    iterative method with Numba acceleration. This version of the solver 
+    does not take in a function for the left had side of the equation, 
+    as is it usually common do so. For stability reasons, the 1D-vector 
+    for the left-hand side function is already hard-coded into the solver. 
+    For further documentation, look into the `calculate_LHS()` function.
 
     ### Parameters:
     - x0 (numpy.ndarray): Initial guess for the solution.
@@ -5965,7 +5975,7 @@ def plot2D(nNodesX, nNodesY, delta, fun, tit, fileName):
             ax.add_patch(plt.Rectangle((x, y), width, height, facecolor=[color, 0, 1 - color], edgecolor=[0.5, 0.5, 0.5], linewidth=0.2))
             x = x + width
 
-    plt.savefig(fileName, bbox_inches='tight')
+    plt.savefig(fileName)#, bbox_inches='tight')
     plt.close()
 
 def plot_results(s):
@@ -6008,6 +6018,8 @@ def plot_results(s):
     plt.xlabel('Distance from the cell center (cm)')
     plt.ylabel('Neutron flux (a.u.)')
     plt.legend(loc='upper left')
+    # Set x-axis ticks with a step size of 0.2
+    plt.xticks(np.arange(min(s['x']), max(s['x']) + 0.1, 0.2))
     plt.savefig('DO_05_flux_cell.pdf', bbox_inches='tight')
     plt.close()
 
@@ -6057,6 +6069,37 @@ def plot_hdf2dict(file_name):
     #return data
     plot_results(data)
 
+def read_file_and_print(file_type, temperature):
+    """
+    Reads data from an HDF5 file based on specified file type and temperature.
+
+    Parameters:
+    - file_type (str): The type of material or substance for which the data is stored.
+    - temperature (int): The temperature at which the data was recorded.
+
+    Returns:
+    - data (dict): A dictionary containing the data read from the HDF5 file.
+
+    Example:
+    >>> data = read_file_and_print('UO2_03', 900)
+    File 'macro421_UO2_03__900K.h5' has been read in.
+    >>> print(data)
+    {'key1': value1, 'key2': value2, ...}
+
+    This function generates the appropriate filename based on the specified file type
+    and temperature, reads data from the corresponding HDF5 file, and prints a message
+    indicating that the file has been successfully read. The data is then returned as a
+    dictionary.
+
+    Note: Ensure that the 'hdf2dict' function is defined and available in the current
+    environment to successfully read data from the HDF5 file.
+    """
+
+    filename = f"macro421_{file_type}__{temperature}K.h5"
+    data = hdf2dict(filename)
+    print(f"File '{filename}' has been read in.")
+    return data
+
 ##################################################################################################################
 def main():
     """
@@ -6095,21 +6138,31 @@ def main():
     g = readPWR_like("g")
     #--------------------------------------------------------------------------
     # Fill the structures fuel, clad, and cool with the cross-section data
-    fuel = hdf2dict('macro421_UO2_03__900K.h5')  # INPUT
-    print(f"File 'macro421_UO2_03__900K.h5' has been read in.")
-    clad = hdf2dict('macro421_Zry__600K.h5')     # INPUT
-    print(f"File 'macro421_Zry__600K.h5' has been read in.")
-    cool  = hdf2dict('macro421_H2OB__600K.h5')   # INPUT
-    print(f"File 'macro421_H2OB__600K.h5' has been read in.")
+    #fuel = hdf2dict('macro421_UO2_03__900K.h5')  # INPUT
+    #print(f"File 'macro421_UO2_03__900K.h5' has been read in.")
+    #clad = hdf2dict('macro421_Zry__600K.h5')     # INPUT
+    #print(f"File 'macro421_Zry__600K.h5' has been read in.")
+    #cool  = hdf2dict('macro421_H2OB__600K.h5')   # INPUT
+    #print(f"File 'macro421_H2OB__600K.h5' has been read in.")
+
+    # Fill the structures fuel, clad, and cool with the cross-section data
+    fuelTemp, cladTemp, coolTemp = 900, 600, 600  # INPUTS
+    fuel = read_file_and_print('UO2_03', fuelTemp)
+    clad = read_file_and_print('Zry',    cladTemp)
+    cool = read_file_and_print('H2OB',   coolTemp)
 
     # Number of energy groups
     ng = fuel["ng"]
 
     #--------------------------------------------------------------------------
+    # Define the material for each node 
+    # (0 is coolant, 1 is cladding, 2 is fuel)          # INPUT     Example:
+    mat = np.array([[2, 2, 2, 2, 2, 1, 0, 0, 0, 0],     #   ([[2, 2, 2, 2, 2, 1, 0, 0, 0, 0],
+                    [2, 2, 2, 2, 2, 1, 0, 0, 0, 0]])    #     [2, 2, 2, 2, 2, 1, 0, 0, 0, 0]])
+    
     # Number of nodes
-    #g = {}
-    g['nNodesX'] = 10  # INPUT
-    g['nNodesY'] = 2   # INPUT
+    g['nNodesX'] = mat.shape[1] # '10'
+    g['nNodesY'] = mat.shape[0] # '2'
 
     # Define the mesh step, nodes coordinates, and node volumes
     g['delta'] = 0.2  # cm  # Sets the spatial step size (grid spacing) to 0.2 cm
@@ -6117,9 +6170,6 @@ def main():
     volume[[0, -1], :] /= 2 # The nodes at the boundaries only cover half 
     volume[:, [0, -1]] /= 2 # of the volume compared to the interior nodes.
 
-    # Define the material for each node (0 is coolant, 1 is cladding, 2 is fuel)
-    mat = np.array([[2, 2, 2, 2, 2, 1, 0, 0, 0, 0],
-                    [2, 2, 2, 2, 2, 1, 0, 0, 0, 0]])
 
     #--------------------------------------------------------------------------
     # Number of discrete ordinates, an even integer (possible values are
@@ -6188,7 +6238,7 @@ def main():
 
     #--------------------------------------------------------------------------
     # Scattering source anisotropy: 0 -- P0 (isotropic), 1 -- P1 (anisotropic)
-    g['L'] = 0  # INPUT
+    g['L'] = 1  # INPUT
     # Initialize the 'R' key in the 'g' dictionary
     g['R'] = np.zeros((g['N'], int(2*g['L'] + 1), int(2*g['L'] + 1)))
     # Calculate spherical harmonics for every ordinate
@@ -6265,7 +6315,7 @@ def main():
                     (ix == g['nNodesX'] and g['muX'][n - 1] < 0) and not (iy == 1 and       \
                     g['muY'][n - 1] > 0) and not (iy == g['nNodesY'] and g['muY'][n - 1] < 0):
                     nEq = nEq + ng
-
+    print(f"The total number of equations to be solved is: {nEq}")
     #--------------------------------------------------------------------------
     # keff needs to be defined this way, otherwise it will cause a crash 
     # in the compute_qT() function. Otherwise we would use keff = [].
@@ -6318,7 +6368,7 @@ def main():
 
         params = [errtol, maxit]
 
-        # Call the Numba CUSTOM bicgstab solver
+        # Call the CUSTOM Numba BiCGSTAB solver
         solution, r, nInner = numba_bicgstab(guess,     RHS,    errtol, maxit,
                                             g["N"],      g["nNodesX"],  g["nNodesY"], 
                                             g["muX"],    g["muY"],      g["muZ"], 
@@ -6332,7 +6382,7 @@ def main():
         # Display the results
         print('nInner = %5.1f residual = %11.5e target = %11.5e' % (nInner, residual[-1], errtol))
 
-        if nInner <= errtol:
+        if nInner == 0:
             break
     print("Iterations finished.")
     #stop_time = t.time()
@@ -6340,9 +6390,22 @@ def main():
     #print("Solution:", solution)
     #---------------------------------------------------------------------------
     # Find integral scalar flux in fuel, cladding, and coolant (average spectra)
-    vol_fuel = np.sum(volume[0:5, :])
-    vol_clad = np.sum(volume[5, :])
-    vol_cool = np.sum(volume[6:, :])
+    #vol_fuel = np.sum(volume[0:5, :])  # In my view a bad implementation, bc
+    #vol_clad = np.sum(volume[5, :])    # the user has to manually input the
+    #vol_cool = np.sum(volume[6:, :])   # indices and their ranges, when changes
+                                        # are made to the 'mat' matrix.
+    #---------------------------------------------------------------------------
+    # Automated approach:
+    # Generating indices based on the values in the 'mat' matrix
+    vol_fuel_indices = np.where(mat[0, :] == 2)[0] # Search for fuel (2) indices
+    vol_clad_indices = np.where(mat[0, :] == 1)[0] # Search for clad (1) indices
+    vol_cool_indices = np.where(mat[0, :] == 0)[0] # Search for cool (0) indices
+
+    # Find integral scalar flux in fuel, cladding, and coolant (average spectra)
+    # Calculating volumes using the generated indices
+    vol_fuel = np.sum(volume[vol_fuel_indices, :])
+    vol_clad = np.sum(volume[vol_clad_indices, :])
+    vol_cool = np.sum(volume[vol_cool_indices, :])
 
     FIFuel = np.zeros(ng)
     FIClad = np.zeros(ng)
@@ -6392,9 +6455,9 @@ def main():
         FI_F = []
 
         for ix in range(g["nNodesX"]):
-            FI_T.append(np.sum(FI[(ix, 0)][0:50]))
-            FI_R.append(np.sum(FI[(ix, 0)][50:288]))
-            FI_F.append(np.sum(FI[(ix, 0)][288:421]))
+            FI_T.append(np.sum(FI[(ix, 0)][0:50]))      # < 1 eV
+            FI_R.append(np.sum(FI[(ix, 0)][50:288]))    # < 0.1 MeV
+            FI_F.append(np.sum(FI[(ix, 0)][288:421]))   # > 0.1 MeV
 
         file.create_dataset('FI_T', data=FI_T)
         file.create_dataset('FI_R', data=FI_R)
