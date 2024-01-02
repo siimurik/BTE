@@ -135,7 +135,11 @@ sections for uranium dioxide which is the fuel material of the pressurized
 water reactor.
 
 ---
-### Step 7. Run the Monte-Carlo method solver
+### Step 7. Run the Solver 
+
+---
+
+#### Monte-Carlo method 
 
 Folder: **06.Monte.Carlo**
 
@@ -205,30 +209,3 @@ final run time was achieved.
 ```
 
 ---
-## OLD/DEPRECATED NOTES:
-# Current progress (MATLAB -> Python):
-* File **convertGSXtoCSV.m** has successfully been converted into a Python file named **convertGSX2CSV.py**.
-* File **convertCSVtoM.m** depends on three main functions: **extractNwords()**, **extract_mf3()** and **extract_mf6()**. These functions are located in a Jupyter Notebook named **testPython.ipynb** in the ***ReactorPhysics_Python*** folder. A MATLAB file named **testMATLAB.m** has also been added as a testing ground for secluded functions. Final code is written in the file **convertCSV2H5.py**. Progress at the moment:
-  - **extractNwords()**;  [Converted successfully]
-  - **extract_mf3()**;    [Converted successfully]
-  - **extract_mf6()**;    [Converted successfully] 
-  - **convertCSVtoM.m**:  [Converted successfully]
-  * Final file: **convertCSV2H5.py**
----
-* Starting work on **createH2OU.m**. Created a test version "_Test.m". Also started to structurize the folders similarly. New testing ground is in folder 02.Macro.XS.421g in file **testH2OU.ipynb**. **createH2OU.m** needs 3 functions to work plus a speacial library called XSteam. Current progress:
-  - XSteam - A similar library made for Python named [pyXSteam](https://github.com/drunsinn/pyXSteam).
-  - sigmaZeros();   [Converted successfully]
-  - interpSigS();   [Converted successfully]
-  - writeMacroXS(); [Converted successfully]
-* **createH2OU.m** has been succesfully converted into Python and now bears the name **createH2OU_Sol.py**. File can be found in the folder 02.Macro.XS.421g.
----
-* Next up: starting work on **createPWR_like_mix.m**. Two new functions that need to be rewritten from 00.Lib
-  - input_and_initialize_PWR_like()
-  - matpro()
-  - NOTE: Data that these functions create are stored in the same folder, functions are part of the larger code named **createPWR_mix.py**
-* **createPWR_like_mix.m** converted to file **createPWR_mix.py**. NB!!! SigT values currently incorrect!!!
-* Significantly optimized the **convertCSV2H5.py** code. Improved version is named **boostedCSV2H5.py** and uses the [Numba](https://numba.readthedocs.io/en/stable/) just-in-time compiler. 
----
-* **createH2OB.m** - [Converted successfully]
-* New file is named **createH2OB.py**
-
