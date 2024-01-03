@@ -135,13 +135,13 @@ sections for uranium dioxide which is the fuel material of the pressurized
 water reactor.
 
 ---
-### Step 7. Run the Solver 
+### Step 7. Run the Solver
 
 ---
 
-#### Monte-Carlo method 
+#### The Monte-Carlo Approach
 
-Folder: **06.Monte.Carlo**
+Folder: **03.Monte.Carlo**
 
 Code to complete task (pure Python): **MonteCarloPWR.py**
 
@@ -209,3 +209,33 @@ final run time was achieved.
 ```
 
 ---
+
+#### The Discrete Ordinates Approach
+
+
+Folder: **04.Discrete.Ordinates**
+
+Code to complete task (pure Python): **discord.py**
+
+Code to complete task (Numba opt.): **numba_discord.py**
+
+The main function calculates  neutron transport in a 2D (x,y) unit cell using the discrete ordinates method.
+
+Surface integrals are handleled by Lebedev-Laikov quadrature rules based on the MATLAB code [getLebedevSphear](https://www.mathworks.com/matlabcentral/fileexchange/27097-getlebedevsphere) by Robert Parrish. A Cython file named discordpy.pyx contains the necessary functions as a separate Python module.
+
+The system of linear equations is solved by the BiCGSTAB solver. The original [code](https://ctk.math.ncsu.edu/roots/bicgstab.m) is written by C. T. (Tim) Kelley, which you can find on his [website](https://ctk.math.ncsu.edu/). This code has been adapted for Python and written into a Numba boosted version, which significantly speeds up the calculations.
+
+```
+# For N = 110 (number of discrete ordinates)
+======================================================================
+Without Optimization (Pure Python):
+   $ real	 6m27,441s
+   $ user	24m31,806s
+   $ sys    23m34,812s
+
+With Numba Optimization:
+   $ real	 2m54,812s
+   $ user	10m29,602s
+   $ sys     9m55,368s
+======================================================================
+```
