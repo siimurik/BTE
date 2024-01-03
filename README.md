@@ -229,12 +229,12 @@ The system of linear equations is solved by the BiCGSTAB solver. The original [c
 # For N = 110 (number of discrete ordinates)
 ======================================================================
 Without Optimization (Pure Python):
-   $ real  6m27,441s
+   $ real   6m27,441s
    $ user  24m31,806s
    $ sys   23m34,812s
 
 With Numba Optimization:
-   $ real  2m54,812s
+   $ real   2m54,812s
    $ user  10m29,602s
    $ sys    9m55,368s
 ======================================================================
