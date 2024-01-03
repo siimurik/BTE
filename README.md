@@ -236,6 +236,6 @@ Without Optimization (Pure Python):
 With Numba Optimization:
    $ real	  2m54,812s
    $ user	 10m29,602s
-   $ sys  9m55,368s
+   $ sys    9m55,368s
 ======================================================================
 ```
