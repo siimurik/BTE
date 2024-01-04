@@ -5845,7 +5845,7 @@ def numba_bicgstab(x0, b, errtolInit, maxit,N, nNodesX, nNodesY, muX, muY, muZ, 
     ------------------------------------------------------------------
     Documenation for the numba_bicgstab() function
     ------------------------------------------------------------------
-    Solves a linear or nonlinear system Ax = b using the Bi-CGSTAB 
+    Solves a system of linear equations Ax = b using the BiCGSTAB 
     iterative method with Numba acceleration. This version of the solver 
     does not take in a function for the left had side of the equation, 
     as is it usually common do so. For stability reasons, the 1D-vector 
