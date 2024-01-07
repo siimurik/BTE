@@ -8,9 +8,6 @@ from scipy.sparse import find
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 """
 =======================================================
-*The purpose of this code is not 100% understood, but 
-this is what I have gathered.*
-
 This function reads n 'words' from a specific row of a 
 given matrix and returns them in a vector, along with 
 the row number where the last word was read.
