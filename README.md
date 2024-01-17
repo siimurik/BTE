@@ -1,6 +1,6 @@
 # BTE
 Files for the master thesis on the topic named:
-## Development of a simplified Monte Carlo Neutron Transport routine in Python
+## Simplified Modelling of Neutron Transport in Python
 
 List of all the Python packages used:
 * [re](https://docs.python.org/3/library/re.html)
