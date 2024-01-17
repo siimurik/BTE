@@ -17,6 +17,11 @@ List of all the Python packages used:
 * [Cython](https://cython.readthedocs.io/en/latest/)
 * [Matplotlib](https://matplotlib.org/)
 
+Install the necessary packages with the command:
+```
+pip install h5py tqdm numpy numba scipy requests pyXSteam cython matplotlib
+```
+
 ---
 ### Step 1. Download nuclear data from IAEA site.
 
