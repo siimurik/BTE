@@ -1,10 +1,14 @@
+#******************************************************************
+# This code is released under the GNU General Public License (GPL).
+#
+# Siim Erik Pugal, 2023-2024
+#******************************************************************
 import h5py
 import time as t
 import numpy as np
 import numba as nb
 from numba import njit, prange
 import matplotlib.pyplot as plt
-
 
 def hdf2dict(file_name):
     """
@@ -115,7 +119,6 @@ def sample_direction():
     dirY = np.sin(eta) * np.sin(nu)
     return dirX, dirY
 
-
 #@nb.njit(fastmath=True)
 @nb.njit
 def move_neutron(x, y, iNeutron, pitch, freePath, dirX, dirY):
@@ -154,12 +157,13 @@ def move_neutron(x, y, iNeutron, pitch, freePath, dirX, dirY):
         y[iNeutron] -= pitch
 
     return x, y
-"""
-Essentialy the same as the one above, but with a different approach.
-"""
+
 #@nb.njit(fastmath=True)
 @nb.njit
 def move_neutronV2(x, y, iNeutron, pitch, freePath, dirX, dirY):
+    """
+    Essentialy the same as move_neutron(), but with a different approach.
+    """
     x[iNeutron] += freePath * dirX
     y[iNeutron] += freePath * dirY
 
@@ -168,7 +172,6 @@ def move_neutronV2(x, y, iNeutron, pitch, freePath, dirX, dirY):
     y = np.mod(y, pitch)
 
     return x, y
-
 
 def calculate_cross_sections(fuelLeft, fuelRight, coolLeft, coolRight, x, iNeutron, iGroup, fuel, cool, clad):
     """
@@ -235,7 +238,6 @@ def calculate_cross_sections_by_region(fuelLeft, fuelRight, coolLeft, coolRight,
         SigP = 0
 
     return SigA, SigS, SigP
-
 
 #@nb.njit(fastmath=True)
 @nb.njit
@@ -311,7 +313,6 @@ def perform_collision(virtualCollision, absorbed,
 
     return virtualCollision, absorbed, iGroup, weight, detectS
 
-
 #@nb.njit(fastmath=True)
 @nb.njit
 def russian_roulette(weight, weight0):
@@ -338,7 +339,6 @@ def russian_roulette(weight, weight0):
         elif terminateP > 0:
             weight[iNeutron] = weight0[iNeutron]  # restore the weight
     return weight
-
 
 #@nb.njit(fastmath=True)
 @nb.njit
@@ -380,7 +380,6 @@ def split_neutrons(weight, numNeutrons, x, y, iGroup):
     numNeutrons += numNew
     return weight, numNeutrons, x, y, iGroup
 
-
 #@nb.njit(fastmath=True)
 @nb.njit
 def update_indices(x, y, iGroup, weight):
@@ -417,7 +416,6 @@ def update_indices(x, y, iGroup, weight):
     
     return x, y, iGroup, weight, numNeutrons
 
-
 def calculate_keff_cycle(iCycle, numCycles_inactive, numCycles_active, weight, weight0, 
                          numNeutrons, keff_active_cycle, keff_expected, sigma_keff):
     """
@@ -452,38 +450,38 @@ def calculate_keff_cycle(iCycle, numCycles_inactive, numCycles_active, weight, w
         msg = f"Active cycle = {iActive:3d}/{numCycles_active:3d}; k-eff cycle = {keff_cycle:.5f}; numNeutrons = {numNeutrons:3d}; k-eff expected = {keff_expected[iActive-1]:.5f}; sigma = {sigma_keff[iActive-1]:.5f}"
         print(msg)
 
-"""
-=============================================================================
- Documentation for the main() section of the code:
------------------------------------------------------------------------------
- Author: Siim Erik Pugal, 2023
-
- The function calculates the neutron transport in a 2D (x,y) unit cell
- similar to the unit cell of the pressurized water reactor using the Monte
- Carlo method. 
------------------------------------------------------------------------------
- This version uses the Numba boosted versions of the Cython functions written
- in 'monetpy.pyx'. Compared to MonteCarloPWR.py and mc_Cython.py, this is
- currently the faster version of the three.
------------------------------------------------------------------------------
- Without Optimization (Pure Python):
-    $ real	4m23.505s
-    $ user	4m22.852s
-    $ sys	0m1.205s
-
- After Cython Optimization
-    $ real	3m28.593s
-    $ user	3m28.118s
-    $ sys   0m1.240s
-    
- With Numba Optimization:
-    $ real	1m28.181s
-    $ user	1m28.348s
-    $ sys	0m1.709s
-
-=============================================================================
-"""
 def main():
+    """
+    =============================================================================
+    Documentation for the main() section of the code:
+    -----------------------------------------------------------------------------
+    Author: Siim Erik Pugal, 2023
+
+    The function calculates the neutron transport in a 2D (x,y) unit cell
+    similar to the unit cell of the pressurized water reactor using the Monte
+    Carlo method. 
+    -----------------------------------------------------------------------------
+    This version uses the Numba boosted versions of the Cython functions written
+    in 'monetpy.pyx'. Compared to MonteCarloPWR.py and mc_Cython.py, this is
+    currently the faster version of the three.
+    -----------------------------------------------------------------------------
+    Without Optimization (Pure Python):
+        $ real	4m23.505s
+        $ user	4m22.852s
+        $ sys	0m1.205s
+
+    After Cython Optimization
+        $ real	3m28.593s
+        $ user	3m28.118s
+        $ sys   0m1.240s
+        
+    With Numba Optimization:
+        $ real	1m28.181s
+        $ user	1m28.348s
+        $ sys	0m1.709s
+
+    =============================================================================
+    """
     # Start stopwatch
     start_time = t.time()  # Placeholder for stopwatch functionality in Python
     

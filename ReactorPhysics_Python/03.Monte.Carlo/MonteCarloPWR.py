@@ -1,41 +1,46 @@
+#******************************************************************
+# This code is released under the GNU General Public License (GPL).
+#
+# Siim Erik Pugal, 2023-2024
+#******************************************************************
 import h5py
 import time as t
 import numpy as np
 import numba as nb
 import matplotlib.pyplot as plt
 
-"""
-===========================================================================
- hdf2dict() function documentation
----------------------------------------------------------------------------
- Essentially a modified version of the 'read_matpro()' function that 
- converts all the data inside a HDF5 file from a HDF5 dict into a Python
- dict.
----------------------------------------------------------------------------
- Parameters:
-        file_name (str): The name or path of the HDF5 file to be processed.
-
- Returns:
-    data (dict): A nested dictionary containing the datasets from the HDF5 
-                file. The keys of the top-level dictionary correspond to 
-                dataset names, and the values can be either nested 
-                dictionaries (for struct datasets) or numpy arrays 
-                (for regular datasets).
-
- Example:
-    data = hdf2dict("data.h5")
----------------------------------------------------------------------------
-    Notes:
-        - This function takes an HDF5 file name or path as input.
-        - It reads datasets from the file and organizes them into a nested 
-            dictionary structure.
-        - Each dataset is represented by a key-value pair in the dictionary.
-        - If a dataset is a struct (group in HDF5), it is further nested 
-            within the dictionary.
-        - Regular datasets are stored as numpy arrays.
-===========================================================================
-"""
 def hdf2dict(file_name):
+    """
+    ===========================================================================
+    hdf2dict() function documentation
+    ---------------------------------------------------------------------------
+    Essentially a modified version of the 'read_matpro()' function that 
+    converts all the data inside a HDF5 file from a HDF5 dict into a Python
+    dict.
+    ---------------------------------------------------------------------------
+    Parameters:
+            file_name (str): The name or path of the HDF5 file to be processed.
+
+    Returns:
+        data (dict): A nested dictionary containing the datasets from the HDF5 
+                    file. The keys of the top-level dictionary correspond to 
+                    dataset names, and the values can be either nested 
+                    dictionaries (for struct datasets) or numpy arrays 
+                    (for regular datasets).
+
+    Example:
+        data = hdf2dict("data.h5")
+    ---------------------------------------------------------------------------
+        Notes:
+            - This function takes an HDF5 file name or path as input.
+            - It reads datasets from the file and organizes them into a nested 
+                dictionary structure.
+            - Each dataset is represented by a key-value pair in the dictionary.
+            - If a dataset is a struct (group in HDF5), it is further nested 
+                within the dictionary.
+            - Regular datasets are stored as numpy arrays.
+    ===========================================================================
+    """
     # Define the dictionary to store the datasets
     data = {}
     #file_name = 'macro421_UO2_03__900K.h5'
@@ -65,18 +70,18 @@ def hdf2dict(file_name):
 
     return data
 
-"""
-===========================================================================
- Documentation for the main() section of the code:
----------------------------------------------------------------------------
- Author: Siim Erik Pugal, 2023
-
- The function calculates the neutron transport in a 2D (x,y) unit cell
- similar to the unit cell of the pressurized water reactor using the Monte
- Carlo method. 
-===========================================================================
-"""
 def main():
+    """
+    ===========================================================================
+    Documentation for the main() section of the code:
+    ---------------------------------------------------------------------------
+    Author: Siim Erik Pugal, 2023
+
+    The function calculates the neutron transport in a 2D (x,y) unit cell
+    similar to the unit cell of the pressurized water reactor using the Monte
+    Carlo method. 
+    ===========================================================================
+    """
     # Start the timer
     start_time = t.time()
 
