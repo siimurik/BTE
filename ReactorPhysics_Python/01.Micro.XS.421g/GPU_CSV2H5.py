@@ -1,3 +1,11 @@
+#******************************************************************
+# This code is released under the GNU General Public License (GPL).
+#
+# Siim Erik Pugal, 2023-2024
+#******************************************************************
+# NOTE! Unfortunately, this code is not in good working order.
+#******************************************************************
+
 import os
 import h5py
 import torch
