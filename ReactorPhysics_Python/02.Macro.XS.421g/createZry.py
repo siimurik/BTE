@@ -1,3 +1,8 @@
+#******************************************************************
+# This code is released under the GNU General Public License (GPL).
+#
+# Siim Erik Pugal, 2023-2024
+#******************************************************************
 import re
 import os
 import h5py
@@ -1309,19 +1314,19 @@ def writeMacroXS(s_struct, matName):
 
     print('Done.')
 
-"""
-=========================================================================
- Documentation for the main() section of the code:
--------------------------------------------------------------------------
- Author: Siim Erik Pugal, 2023
-
- The function reads the MICROsopic group cross sections in the HDF5
- format and calculates from them the MACROscopic cross sections for
- natural mixture of zirconium isotopes which is the basis of zircalloy --
- fuel cladding material of the pressurized water reactor.
-=========================================================================
-"""
 def main():
+    """
+    =========================================================================
+    Documentation for the main() section of the code:
+    -------------------------------------------------------------------------
+    Author: Siim Erik Pugal, 2023
+
+    The function reads the MICROsopic group cross sections in the HDF5
+    format and calculates from them the MACROscopic cross sections for
+    natural mixture of zirconium isotopes which is the basis of zircalloy --
+    fuel cladding material of the pressurized water reactor.
+    =========================================================================
+    """
     # input and initialize the geometry of the PWR unit cell (the function is in '..\00.Lib')
     lib_path = os.path.join('..', '00.Lib')
     file_path_PWR = os.path.join(lib_path, 'initPWR_like.h5')

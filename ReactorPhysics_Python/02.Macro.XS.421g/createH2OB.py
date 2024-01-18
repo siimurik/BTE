@@ -1,3 +1,8 @@
+#******************************************************************
+# This code is released under the GNU General Public License (GPL).
+#
+# Siim Erik Pugal, 2023-2024
+#******************************************************************
 import re
 import os
 import h5py
@@ -1031,19 +1036,20 @@ def writeMacroXS(s_struct, matName):
 
     print('Done.')
 
-"""
-=========================================================================
- Documentation for the main() section of the code:
--------------------------------------------------------------------------
- Author: Siim Erik Pugal, 2023
 
- The function reads the MICROscopic group cross sections in the HDF5
- format and calculates from them the MACROscopic cross sections for water
- solution of boric acid which is similar to the coolant of the pressurized
- water reactor.
-=========================================================================
-"""
 def main():
+    """
+    =========================================================================
+    Documentation for the main() section of the code:
+    -------------------------------------------------------------------------
+    Author: Siim Erik Pugal, 2023
+
+    The function reads the MICROscopic group cross sections in the HDF5
+    format and calculates from them the MACROscopic cross sections for water
+    solution of boric acid which is similar to the coolant of the pressurized
+    water reactor.
+    =========================================================================
+    """
     # number of energy groups
     ng = 421
 

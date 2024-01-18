@@ -1,3 +1,8 @@
+#******************************************************************
+# This code is released under the GNU General Public License (GPL).
+#
+# Siim Erik Pugal, 2023-2024
+#******************************************************************
 import os
 import re
 import h5py
@@ -5,33 +10,35 @@ import numpy as np
 import scipy as sp
 from numba import njit
 from pyXSteam.XSteam import XSteam
-"""
-===========================================================================
-                sigmaZeros() Function Documentation
----------------------------------------------------------------------------
-The 'sigmaZeros()' function calculates the background cross sections, 
-sigma-zeros, based on given input parameters. 
 
-**Inputs:**
-- 'sigTtab': A cell array containing matrices of total microscopic 
-    cross sections for each isotope. Each matrix has dimensions 
-    (nsigz x ng), where nsigz is the number of base points 
-    sigma-zeros and ng is the number of energy groups.
-- 'sig0tab': A cell array containing vectors of base points of 
-    tabulated sigma-zeros for each energy group.
-- 'aDen': A vector of atomic densities of isotopes.
-- 'SigEscape': The escape cross section (1/cm) for simple convex objects.
-
-**Outputs:**
-- 'sig0': A 2D matrix of sigma-zeros with dimensions (nIso x ng).
-- 'sigT': A 2D matrix of total macroscopic cross sections corrected 
-    with account for sigma-zero, with dimensions (nIso x ng).
-
-The function uses the input parameters to calculate the sigma-zeros and 
-the corrected total macroscopic cross sections.
-===========================================================================
-"""
 def sigmaZeros(sigTtab, sig0tab, aDen, SigEscape):
+    """
+    ===========================================================================
+                    sigmaZeros() Function Documentation
+    ---------------------------------------------------------------------------
+    The 'sigmaZeros()' function calculates the background cross sections, 
+    sigma-zeros, based on given input parameters. 
+
+    **Inputs:**
+    - 'sigTtab': A cell array containing matrices of total microscopic 
+        cross sections for each isotope. Each matrix has dimensions 
+        (nsigz x ng), where nsigz is the number of base points 
+        sigma-zeros and ng is the number of energy groups.
+    - 'sig0tab': A cell array containing vectors of base points of 
+        tabulated sigma-zeros for each energy group.
+    - 'aDen': A vector of atomic densities of isotopes.
+    - 'SigEscape': The escape cross section (1/cm) for simple convex objects.
+
+    **Outputs:**
+    - 'sig0': A 2D matrix of sigma-zeros with dimensions (nIso x ng).
+    - 'sigT': A 2D matrix of total macroscopic cross sections corrected 
+        with account for sigma-zero, with dimensions (nIso x ng).
+
+    The function uses the input parameters to calculate the sigma-zeros and 
+    the corrected total macroscopic cross sections.
+
+    ===========================================================================
+    """
     # Number of energy groups
     ng = 421
 
@@ -92,27 +99,28 @@ def sigmaZeros(sigTtab, sig0tab, aDen, SigEscape):
 
     return sig0
 
-"""
-=====================================================================================
-    initPWR_like() Function Documentation
--------------------------------------------------------------------------------------
- Description:
-   This function sets the input parameters and initializes the
-   geometry and other parameters related to the fuel rod, cladding,
-   coolant, and channel in a pressurized water reactor (PWR) core unit cell.
--------------------------------------------------------------------------------------
- Example:
-   initPWR_like()
-
- Global Variables:
-   This function sets and modifies the following global variables:
-     - g: Represents the overall geometry and nodalization of the fuel rod,
-          cladding, coolant, and channel.
-     - th: Represents various thermal-hydraulic parameters.
-     - fr: Represents parameters related to the fuel rod and fuel properties.
-=====================================================================================
-"""
 def initPWR_like():
+    """
+    =====================================================================================
+        initPWR_like() Function Documentation
+    -------------------------------------------------------------------------------------
+    Description:
+    This function sets the input parameters and initializes the
+    geometry and other parameters related to the fuel rod, cladding,
+    coolant, and channel in a pressurized water reactor (PWR) core unit cell.
+    -------------------------------------------------------------------------------------
+    Example:
+    initPWR_like()
+
+    Global Variables:
+    This function sets and modifies the following global variables:
+        - g: Represents the overall geometry and nodalization of the fuel rod,
+            cladding, coolant, and channel.
+        - th: Represents various thermal-hydraulic parameters.
+        - fr: Represents parameters related to the fuel rod and fuel properties.
+
+    =====================================================================================
+"""
     #global global_g
     with h5py.File("..//00.Lib/initPWR_like.h5", "w") as hdf:
         g  = hdf.create_group("g")
@@ -279,30 +287,31 @@ def initPWR_like():
         th.create_dataset("h", data = th_h)
         th.create_dataset("p", data = th_p)
 
-"""
-=====================================================================================
-    readPWR_like() Function Documentation
--------------------------------------------------------------------------------------
- Description:
-    Reads data from an HDF5 file and returns the datasets based on the input keyword.
--------------------------------------------------------------------------------------
- Parameters:
-    input_keyword (str): The input keyword specifying the group name.
- 
- Returns:
-    data (dict): A dictionary containing the datasets.
- 
- Example:
-    data = readPWR_like("fr")
- 
- Notes:
-    - This function assumes that the HDF5 file 'initPWR_like.h5' is located
-        in the parent directory of the current directory.
-    - The HDF5 file should contain groups corresponding to different input
-        keywords, and each group should contain datasets.
-=====================================================================================
-"""
 def readPWR_like(input_keyword):
+    """
+    =====================================================================================
+        readPWR_like() Function Documentation
+    -------------------------------------------------------------------------------------
+    Description:
+        Reads data from an HDF5 file and returns the datasets based on the input keyword.
+    -------------------------------------------------------------------------------------
+    Parameters:
+        input_keyword (str): The input keyword specifying the group name.
+    
+    Returns:
+        data (dict): A dictionary containing the datasets.
+    
+    Example:
+        data = readPWR_like("fr")
+    
+    Notes:
+        - This function assumes that the HDF5 file 'initPWR_like.h5' is located
+            in the parent directory of the current directory.
+        - The HDF5 file should contain groups corresponding to different input
+            keywords, and each group should contain datasets.
+
+    =====================================================================================
+    """
     # Define the mapping of input keyword to group name
     group_mapping = {
         "fr": "fr",
@@ -343,26 +352,27 @@ def readPWR_like(input_keyword):
 
     return data
 
-"""
-=======================================================================================================
-    matpro() Function Documentation
--------------------------------------------------------------------------------------------------------
- Description:
-    Creates an HDF5 file and stores material property data for UO2 and Zircaloy.
--------------------------------------------------------------------------------------------------------
- Example:
-    matpro()
- 
- Notes:
-    - This function creates an HDF5 file named 'matprop_UO2_zircaloy.h5' in the parent directory
-        of the current directory.
-    - The function defines material property equations and constants for UO2 and Zircaloy.
-    - The material properties include density, specific heat, thermal conductivity, thermal expansion,
-        Young's modulus, Poisson ratio, swelling rate, thermal creep rate, and more.
-    - The function stores the material property data in groups and datasets within the HDF5 file.
-=======================================================================================================
-"""
 def matpro():
+    """
+    =======================================================================================================
+        matpro() Function Documentation
+    -------------------------------------------------------------------------------------------------------
+    Description:
+        Creates an HDF5 file and stores material property data for UO2 and Zircaloy.
+    -------------------------------------------------------------------------------------------------------
+    Example:
+        matpro()
+    
+    Notes:
+        - This function creates an HDF5 file named 'matprop_UO2_zircaloy.h5' in the parent directory
+            of the current directory.
+        - The function defines material property equations and constants for UO2 and Zircaloy.
+        - The material properties include density, specific heat, thermal conductivity, thermal expansion,
+            Young's modulus, Poisson ratio, swelling rate, thermal creep rate, and more.
+        - The function stores the material property data in groups and datasets within the HDF5 file.
+
+    =======================================================================================================
+    """
     with h5py.File("..//00.Lib/matprop_UO2_zircaloy.h5", "w") as hdf:
         # UO2: theoretical density (kg/m3) MATPRO(2003) p. 2-56
         fuel_rho = 10980
@@ -475,38 +485,38 @@ def matpro():
         clad_group.attrs['n'] = clad_n
         clad_group.attrs['sigB'] = clad_sigB
 
-
-"""
-=====================================================================================================
-    read_matpro() Function Documentation
------------------------------------------------------------------------------------------------------
- Description:
-    Reads material property data from an HDF5 file for a specific input keyword.
------------------------------------------------------------------------------------------------------
- Parameters:
-    input_keyword (str): The keyword specifying the material group to read.
-                            Valid keywords: "clad", "fuel", "gap".
- Returns:
-    data (dict): A dictionary containing the material property data.
-                    The dictionary keys correspond to the attribute and dataset names,
-                    and the values are the corresponding attribute values or dataset arrays.
- Example:
-    data = read_matpro("fuel")
-
- Notes:
-    - This function reads material property data from an HDF5 file named 'matprop_UO2_zircaloy.h5'
-        located in the parent directory of the current directory.
-    - The input keyword specifies the material group to read, which can be "clad", "fuel", or "gap".
-    - The function retrieves the corresponding group from the HDF5 file based on the input keyword.
-    - The function extracts the attribute values and dataset arrays from the group and stores them
-        in a dictionary.
-    - The dictionary keys are the attribute and dataset names, and the values are the corresponding
-        attribute values or dataset arrays.
-    - If the input keyword is not valid or no group is found for the keyword in the HDF5 file,
-        an empty dictionary is returned.
-=====================================================================================================
-"""
 def read_matpro(input_keyword):
+    """
+    =====================================================================================================
+        read_matpro() Function Documentation
+    -----------------------------------------------------------------------------------------------------
+    Description:
+        Reads material property data from an HDF5 file for a specific input keyword.
+    -----------------------------------------------------------------------------------------------------
+    Parameters:
+        input_keyword (str): The keyword specifying the material group to read.
+                                Valid keywords: "clad", "fuel", "gap".
+    Returns:
+        data (dict): A dictionary containing the material property data.
+                        The dictionary keys correspond to the attribute and dataset names,
+                        and the values are the corresponding attribute values or dataset arrays.
+    Example:
+        data = read_matpro("fuel")
+
+    Notes:
+        - This function reads material property data from an HDF5 file named 'matprop_UO2_zircaloy.h5'
+            located in the parent directory of the current directory.
+        - The input keyword specifies the material group to read, which can be "clad", "fuel", or "gap".
+        - The function retrieves the corresponding group from the HDF5 file based on the input keyword.
+        - The function extracts the attribute values and dataset arrays from the group and stores them
+            in a dictionary.
+        - The dictionary keys are the attribute and dataset names, and the values are the corresponding
+            attribute values or dataset arrays.
+        - If the input keyword is not valid or no group is found for the keyword in the HDF5 file,
+            an empty dictionary is returned.
+            
+    =====================================================================================================
+    """
     # Define the mapping of input keyword to group name
     group_mapping = {
                     "clad": "clad",
@@ -540,24 +550,25 @@ def psi(k1, k2, M1, M2):
 def evaluate_equation(equation, **kwargs):
     return eval(equation, globals(), kwargs)
 
-"""
-======================================================================================
-    interpSigS() Function Documentation
---------------------------------------------------------------------------------------
- Description:
-    The interpSigS function performs interpolation to calculate the scattering matrix 
-    sigS based on provided input parameters.
- 
- **Inputs**:
- - 'jLgn': An integer representing the index of the energy group.
- - 'element': A string specifying the element.
- - 'Sig0': A numpy array representing the sigma-zero values for target points.
-
- **Outputs:**
- - 'sigS': A numpy array representing the resulting scattering matrix.
-======================================================================================
-"""
 def interpSigS(jLgn, element, temp, Sig0):
+    """
+    ======================================================================================
+        interpSigS() Function Documentation
+    --------------------------------------------------------------------------------------
+    Description:
+        The interpSigS function performs interpolation to calculate the scattering matrix 
+        sigS based on provided input parameters.
+    
+    **Inputs**:
+    - 'jLgn': An integer representing the index of the energy group.
+    - 'element': A string specifying the element.
+    - 'Sig0': A numpy array representing the sigma-zero values for target points.
+
+    **Outputs:**
+    - 'sigS': A numpy array representing the resulting scattering matrix.
+
+    ======================================================================================
+    """
     # Number of energy groups
     ng = 421
     elementDict = {
@@ -623,13 +634,13 @@ def interpSigS(jLgn, element, temp, Sig0):
 
     return sigS
 
-"""
-====================================================
- Numba boosted version of scipy.sparse.find() 
-====================================================
-"""
 @njit
 def numba_sparse_find(matrix):
+    """
+    ====================================================
+    Numba boosted version of scipy.sparse.find() 
+    ====================================================
+    """
     rows, cols = [], []
     values = []
     for i in range(matrix.shape[0]):
@@ -640,26 +651,26 @@ def numba_sparse_find(matrix):
                 values.append(matrix[i, j])
     return np.array(rows), np.array(cols), np.array(values)
 
-"""
-====================================================
- Numba boosted version of scipy.sparse.coo_matrix() 
-====================================================
-"""
 @njit
 def numba_coo_matrix(tmp2, ifrom, ito, shape):
+    """
+    ====================================================
+    Numba boosted version of scipy.sparse.coo_matrix() 
+    ====================================================
+    """
     coo_matrix = np.zeros(shape)
     for i in range(len(ifrom)):
         coo_matrix[ifrom[i], ito[i]] = tmp2[i]
     return coo_matrix
 
-"""
-====================================================
- Essential part of the interSigS() function that
- handles the computationally heavy part
-====================================================
-"""
 @njit
 def numba_prep_interpSigS(jLgn, s_sig0, s_sigS, Sig0):
+    """
+    ====================================================
+    Essential part of the interSigS() function that
+    handles the computationally heavy part
+    ====================================================
+    """
     # Number of sigma-zeros
     nSig0 = len(s_sig0)
     if nSig0 == 1:
@@ -679,12 +690,13 @@ def numba_prep_interpSigS(jLgn, s_sig0, s_sigS, Sig0):
         sigS = numba_coo_matrix(tmp2, ifrom, ito, shape)
 
     return sigS
-"""
-=====================================================
-        Numba boosted version of interpSigS()
-=====================================================
-"""
+
 def boosted_interpSigS(jLgn, element, temp, Sig0):
+    """
+    =====================================================
+            Numba boosted version of interpSigS()
+    =====================================================
+    """
     # Number of energy groups
     ng = 421
     elementDict = {
@@ -733,23 +745,23 @@ def boosted_interpSigS(jLgn, element, temp, Sig0):
 
     return sigS
 
-"""
-==========================================================
- writeMacroXS() Function Documentation
-----------------------------------------------------------
- This function writes all group macroscopic cross sections
- from a HDF5.h5 structure 's_filename' to a HDF5 file with
- the name stored in matName.
-
-**Inputs:**
-    - s_filename: HDF5 file
-    - matName: string
-
-**Output:**
-    - "matName.h5": HDF5 file
-==========================================================
-"""
 def writeMacroXS(s_struct, matName):
+    """
+    ==========================================================
+    writeMacroXS() Function Documentation
+    ----------------------------------------------------------
+    This function writes all group macroscopic cross sections
+    from a HDF5.h5 structure 's_filename' to a HDF5 file with
+    the name stored in matName.
+
+    **Inputs:**
+        - s_filename: HDF5 file
+        - matName: string
+
+    **Output:**
+        - "matName.h5": HDF5 file
+    ==========================================================
+    """
     print(f'Write macroscopic cross sections to the file: {matName}.h5')
     
     # Convert int and float to np.ndarray
@@ -845,41 +857,41 @@ def writeMacroXS(s_struct, matName):
 
     print('Done.\n')
 
-"""
-================================================================================
-    prepareIntoND() Function Documentation
---------------------------------------------------------------------------------
- Description:
-    Prepares a variable number of 2D matrices into a single 3D array.
---------------------------------------------------------------------------------
- Parameters:
-    *matrices (numpy.ndarray): Variable number of 2D matrices.
-        Each matrix represents a cell and must have the same number of columns.
-
- Returns:
-    result3D (numpy.ndarray): A 3D array containing the prepared data.
-    The shape of the array is (num_cells, max_rows, num_cols).
-    - num_cells: Number of matrices/cells.
-    - max_rows: Maximum number of rows among all matrices.
-    - num_cols: Number of columns in each matrix.
-
- Example:
-    matrix1 = np.array([[1, 2], [3, 4]])
-    matrix2 = np.array([[5, 6, 7], [8, 9, 10], [11, 12, 13]])
-    result = prepareIntoND(matrix1, matrix2)
-
- Notes:
-    - This function takes a variable number of 2D matrices as input.
-    - Each matrix represents a cell and must have the same number of columns.
-    - The function determines the number of cells, the maximum number of rows 
-        among all matrices, and the number of columns in each matrix.
-    - It creates an empty 3D array with the desired shape using `np.zeros`.
-    - It fills the 3D array with data from the 2D matrices, aligning the rows 
-        based on the maximum number of rows.
-    - The resulting 3D array is returned.
-================================================================================
-"""
 def prepareIntoND(*matrices):
+    """
+    ================================================================================
+        prepareIntoND() Function Documentation
+    --------------------------------------------------------------------------------
+    Description:
+        Prepares a variable number of 2D matrices into a single 3D array.
+    --------------------------------------------------------------------------------
+    Parameters:
+        *matrices (numpy.ndarray): Variable number of 2D matrices.
+            Each matrix represents a cell and must have the same number of columns.
+
+    Returns:
+        result3D (numpy.ndarray): A 3D array containing the prepared data.
+        The shape of the array is (num_cells, max_rows, num_cols).
+        - num_cells: Number of matrices/cells.
+        - max_rows: Maximum number of rows among all matrices.
+        - num_cols: Number of columns in each matrix.
+
+    Example:
+        matrix1 = np.array([[1, 2], [3, 4]])
+        matrix2 = np.array([[5, 6, 7], [8, 9, 10], [11, 12, 13]])
+        result = prepareIntoND(matrix1, matrix2)
+
+    Notes:
+        - This function takes a variable number of 2D matrices as input.
+        - Each matrix represents a cell and must have the same number of columns.
+        - The function determines the number of cells, the maximum number of rows 
+            among all matrices, and the number of columns in each matrix.
+        - It creates an empty 3D array with the desired shape using `np.zeros`.
+        - It fills the 3D array with data from the 2D matrices, aligning the rows 
+            based on the maximum number of rows.
+        - The resulting 3D array is returned.
+    ================================================================================
+    """
     num_cells = len(matrices)
     num_rows_per_cell = [matrix.shape[0] for matrix in matrices]
     num_cols = matrices[0].shape[1]
@@ -894,37 +906,37 @@ def prepareIntoND(*matrices):
 
     return result3D
 
-"""
-==================================================================================
-    prep2D() Function Documentation
-----------------------------------------------------------------------------------
- Extracts data from a group of datasets and returns them as a 2D numpy array.
-----------------------------------------------------------------------------------
- Parameters:
-    group (h5py.Group): A group containing datasets.
-
- Returns:
-    data (numpy.ndarray): A 2D numpy array containing the extracted data.
-                          Each row corresponds to the data from a dataset 
-                          in the group.
-
- Example:
-    with h5py.File("data.h5", "r") as file:
-        group = file["group_name"]
-        data = prep2D(group)
-
- Notes:
-    - This function takes a group object (h5py.Group) as input.
-    - It extracts the data from all datasets within the group and combines  
-      them into a 2D array.
-    - The datasets are visited recursively using the `visititems` method 
-      of the group.
-    - The data from each dataset is converted into a numpy array and appended 
-      to a list.
-    - Finally, the list of arrays is converted into a 2D numpy array and returned.
-==================================================================================
-"""
 def prep2D(group):
+    """
+    ==================================================================================
+        prep2D() Function Documentation
+    ----------------------------------------------------------------------------------
+    Extracts data from a group of datasets and returns them as a 2D numpy array.
+    ----------------------------------------------------------------------------------
+    Parameters:
+        group (h5py.Group): A group containing datasets.
+
+    Returns:
+        data (numpy.ndarray): A 2D numpy array containing the extracted data.
+                            Each row corresponds to the data from a dataset 
+                            in the group.
+
+    Example:
+        with h5py.File("data.h5", "r") as file:
+            group = file["group_name"]
+            data = prep2D(group)
+
+    Notes:
+        - This function takes a group object (h5py.Group) as input.
+        - It extracts the data from all datasets within the group and combines  
+        them into a 2D array.
+        - The datasets are visited recursively using the `visititems` method 
+        of the group.
+        - The data from each dataset is converted into a numpy array and appended 
+        to a list.
+        - Finally, the list of arrays is converted into a 2D numpy array and returned.
+    ==================================================================================
+    """
     subgroups_data = []
 
     def get_data(name, obj):
@@ -935,20 +947,20 @@ def prep2D(group):
     group.visititems(get_data)
     return np.array(subgroups_data) 
 
-"""
-=====================================================================================
- Documentation for the main() section of the code:
--------------------------------------------------------------------------------------
- Author: Siim Erik Pugal, 2023
-
- The main function reads the MICROscopic group cross sections in the HDF5
- format for materials similar to the materials of the unit cell of the
- pressurized water reactor (PWR) and calculates from them the MACROscopic
- cross sections for homogeneous mixture of dioxide uranium (fuel), natural
- mixture of zirconium isotopes (cladding) and water solution of boric acid (coolant).
-=====================================================================================
-"""
 def main():
+    """
+    =====================================================================================
+    Documentation for the main() section of the code:
+    -------------------------------------------------------------------------------------
+    Author: Siim Erik Pugal, 2023
+
+    The main function reads the MICROscopic group cross sections in the HDF5
+    format for materials similar to the materials of the unit cell of the
+    pressurized water reactor (PWR) and calculates from them the MACROscopic
+    cross sections for homogeneous mixture of dioxide uranium (fuel), natural
+    mixture of zirconium isotopes (cladding) and water solution of boric acid (coolant).
+    =====================================================================================
+    """
     # input and initialize the geometry of the PWR unit cell (the function is in '..\00.Lib')
     lib_path = os.path.join('..', '00.Lib')
     file_path_PWR = os.path.join(lib_path, 'initPWR_like.h5')

@@ -1,3 +1,8 @@
+#******************************************************************
+# This code is released under the GNU General Public License (GPL).
+#
+# Siim Erik Pugal, 2023-2024
+#******************************************************************
 import re
 import h5py
 import numpy as np
@@ -7,35 +12,35 @@ import matplotlib.pyplot as plt
 from pyXSteam.XSteam import XSteam
 
 #=============================================================================================================
-"""
-=================================================================
-Documentation of prep2D() function... sort of
-------------------------------------------------------------------
-This function aims to combine multiple subgroups of a given 
-group into a single NumPy 2D array. It is specifically designed 
-to work with subgroups that follow a naming convention like 
-'sigT(0,:)', 'sigT(1,:)', ..., 'sigT(9,:)'.
-
-Parameters:
-- group: h5py.Group
-The group object representing the parent group containing the 
-subgroups to be combined.
-
-Returns:
-- combined_data: numpy.ndarray
-A NumPy 2D array containing the combined data from all the 
-subgroups.
-
-Please Note:
-The function assumes that the subgroups follow a specific naming 
-convention where the subgroups are named 'sigT(0,:)', 'sigT(1,:)',
-..., 'sigT(9,:)'.
-The combined_data array returned by the function is structured as 
-np.array([[data]]), which is useful for further operations like 
-np.concatenate().
-===================================================================
-"""
 def prep2D(group):
+    """
+    =================================================================
+    Documentation of prep2D() function
+    ------------------------------------------------------------------
+    This function aims to combine multiple subgroups of a given 
+    group into a single NumPy 2D array. It is specifically designed 
+    to work with subgroups that follow a naming convention like 
+    'sigT(0,:)', 'sigT(1,:)', ..., 'sigT(9,:)'.
+
+    Parameters:
+    - group: h5py.Group
+    The group object representing the parent group containing the 
+    subgroups to be combined.
+
+    Returns:
+    - combined_data: numpy.ndarray
+    A NumPy 2D array containing the combined data from all the 
+    subgroups.
+
+    Please Note:
+    The function assumes that the subgroups follow a specific naming 
+    convention where the subgroups are named 'sigT(0,:)', 'sigT(1,:)',
+    ..., 'sigT(9,:)'.
+    The combined_data array returned by the function is structured as 
+    np.array([[data]]), which is useful for further operations like 
+    np.concatenate().
+    ===================================================================
+    """
     subgroups_data = []
 
     def get_data(name, obj):
@@ -46,53 +51,40 @@ def prep2D(group):
     group.visititems(get_data)
     return np.array(subgroups_data) # The output is np.array([[data]]) 
                                     # That is useful for np.concatenate() 
+
 #=============================================================================================================
-"""
-The 'sigmaZeros()' function calculates the background cross sections, 
-sigma-zeros, based on given input parameters. 
-
-**Inputs:**
-- 'sigTtab': A cell array containing matrices of total microscopic 
-    cross sections for each isotope. Each matrix has dimensions 
-    (nsigz x ng), where nsigz is the number of base points 
-    sigma-zeros and ng is the number of energy groups.
-- 'sig0tab': A cell array containing vectors of base points of 
-    tabulated sigma-zeros for each energy group.
-- 'aDen': A vector of atomic densities of isotopes.
-- 'SigEscape': The escape cross section (1/cm) for simple convex objects.
-
-**Outputs:**
-- 'sig0': A 2D matrix of sigma-zeros with dimensions (nIso x ng).
-- 'sigT': A 2D matrix of total macroscopic cross sections corrected 
-    with account for sigma-zero, with dimensions (nIso x ng).
-
-The function uses the input parameters to calculate the sigma-zeros and 
-the corrected total macroscopic cross sections.
-------------------------------------------------------------------------
-More on sigma0:
-In the context of radiation transport and cross-section data, "sigma-zero" 
-refers to the base point or reference value of the cross section at a 
-specific energy group. It represents the background or base cross section 
-for a given interaction process between particles and materials.
-
-The sigma-zero value is used as a reference point for interpolating or 
-extrapolating the cross section values at different energies or sigma-zero 
-points. By knowing the sigma-zero value and the variation of the cross 
-section with respect to sigma-zero, one can calculate the cross section at 
-any desired energy or sigma-zero value.
-
-In practical terms, sigma-zero allows for the normalization and adjustment 
-of cross-section data to a common reference point. It helps characterize 
-the behavior of cross sections as a function of energy and provides a 
-consistent framework for comparing and analyzing different materials 
-and isotopes.
-
-By accounting for sigma-zero, one can accurately determine the total 
-macroscopic cross sections, which play a crucial role in calculations 
-related to radiation shielding, dose calculations, reactor design, and 
-other applications in nuclear physics and radiation science.
-"""
 def sigmaZeros(sigTtab, sig0tab, aDen, SigEscape):
+    """
+    The 'sigmaZeros()' function calculates the background cross sections, 
+    sigma-zeros, based on given input parameters. 
+
+    **Inputs:**
+    - 'sigTtab': A cell array containing matrices of total microscopic 
+        cross sections for each isotope. Each matrix has dimensions 
+        (nsigz x ng), where nsigz is the number of base points 
+        sigma-zeros and ng is the number of energy groups.
+    - 'sig0tab': A cell array containing vectors of base points of 
+        tabulated sigma-zeros for each energy group.
+    - 'aDen': A vector of atomic densities of isotopes.
+    - 'SigEscape': The escape cross section (1/cm) for simple convex objects.
+
+    **Outputs:**
+    - 'sig0': A 2D matrix of sigma-zeros with dimensions (nIso x ng).
+    - 'sigT': A 2D matrix of total macroscopic cross sections corrected 
+        with account for sigma-zero, with dimensions (nIso x ng).
+
+    The function uses the input parameters to calculate the sigma-zeros and 
+    the corrected total macroscopic cross sections.
+    ------------------------------------------------------------------------
+    More on sigma0:
+    sigmaZeros utilises an iterative process to compute the sigma-zero values, 
+    which is a measure of how much other nuclei in a material affect the 
+    behavior of a specific type of nucleus. It helps us understand the 
+    proportion of this specific type of nucleus in the material and how it 
+    influences the cross-sections of neutrons. In reality, this means that 
+    the process iterates until there is only one isotope present in the 
+    mixture given some tolerance value.
+    """
     # Number of energy groups
     ng = 421
 
@@ -154,47 +146,47 @@ def sigmaZeros(sigTtab, sig0tab, aDen, SigEscape):
     return sig0
 
 #=============================================================================================================
-"""
-==========================================================
-prepareInto3D() Function Documentation
-----------------------------------------------------------
-This function is designed to prepare and reshape three 
-input arrays, 'sigA_H01', 'sigA_O16', and 'sigA_U235', 
-into a 3D NumPy array. The function performs the following 
-steps to achieve the desired transformation:
-
-**Inputs:**
-    - sigA_H01: numpy.ndarray
-        The input array representing sigA data for H01.
-    - sigA_O16: numpy.ndarray
-        The input array representing sigA data for O16.
-    - sigA_U235: numpy.ndarray
-        The input array representing sigA data for U235.
-
-**Output:**
-    - result3D: numpy.ndarray
-        A 3D NumPy array with the transformed data.
-
-Description:
-The prepareInto3D() function concatenates the three input arrays, 
-'sigA_H01', 'sigA_O16', and 'sigA_U235', along the 0th axis, 
-resulting in a 2D array named 'data2D'. It then reshapes the 
-'data2D' array into a 3D array, 'result3D', where each cell in 
-the 0th axis corresponds to one of the input arrays.
-
-The resulting 'result3D' array has the shape 
-(num_cells, max(num_rows_per_cell), num_cols), where:
-- num_cells: The number of input arrays (in this case, 3).
-- max(num_rows_per_cell): The maximum number of rows among the input arrays.
-- num_cols: The number of columns in the 'data2D' array.
-
-The function creates an empty 3D array, 'result3D', with the 
-desired shape and then fills it with the data from the 'data2D' 
-array. The data is copied into the 'result3D' array, cell by 
-cell, while maintaining the original shape of each input array.
-==========================================================
-"""
 def prepareInto3D(sigA_H01, sigA_O16, sigA_U235):
+    """
+    ==========================================================
+    prepareInto3D() Function Documentation
+    ----------------------------------------------------------
+    This function is designed to prepare and reshape three 
+    input arrays, 'sigA_H01', 'sigA_O16', and 'sigA_U235', 
+    into a 3D NumPy array. The function performs the following 
+    steps to achieve the desired transformation:
+
+    **Inputs:**
+        - sigA_H01: numpy.ndarray
+            The input array representing sigA data for H01.
+        - sigA_O16: numpy.ndarray
+            The input array representing sigA data for O16.
+        - sigA_U235: numpy.ndarray
+            The input array representing sigA data for U235.
+
+    **Output:**
+        - result3D: numpy.ndarray
+            A 3D NumPy array with the transformed data.
+
+    Description:
+    The prepareInto3D() function concatenates the three input arrays, 
+    'sigA_H01', 'sigA_O16', and 'sigA_U235', along the 0th axis, 
+    resulting in a 2D array named 'data2D'. It then reshapes the 
+    'data2D' array into a 3D array, 'result3D', where each cell in 
+    the 0th axis corresponds to one of the input arrays.
+
+    The resulting 'result3D' array has the shape 
+    (num_cells, max(num_rows_per_cell), num_cols), where:
+    - num_cells: The number of input arrays (in this case, 3).
+    - max(num_rows_per_cell): The maximum number of rows among the input arrays.
+    - num_cols: The number of columns in the 'data2D' array.
+
+    The function creates an empty 3D array, 'result3D', with the 
+    desired shape and then fills it with the data from the 'data2D' 
+    array. The data is copied into the 'result3D' array, cell by 
+    cell, while maintaining the original shape of each input array.
+    ==========================================================
+    """
     data2D = np.concatenate([sigA_H01, sigA_O16, sigA_U235], axis=0)
     
     # Reshape the sigTtab from 2D into a 3D array
@@ -213,62 +205,63 @@ def prepareInto3D(sigA_H01, sigA_O16, sigA_U235):
         row_start += num_rows
 
     return result3D
-#=============================================================================================================
-"""
-=======================================================================================
-Documentation for "interpolate_data()"
----------------------------------------------------------------------------------------
-The 'kind='linear'' argument in 'interp1d' specifies the type of interpolation to be 
-performed. In this case, it indicates that linear interpolation should be used. 
-Linear interpolation calculates the values between two known data points as a 
-straight line. 
 
-Regarding "fill_value='extrapolate'", it is used to enable extrapolation of values 
-outside the range of the given data. By default, 'interp1d' raises an error if you 
-try to interpolate/extrapolate outside the range of the input data. Setting 
-'fill_value='extrapolate'' allows the function to extrapolate values beyond the 
-given data range.
-=======================================================================================
-"""
+#=============================================================================================================
 def interpolate_data(x, y, xi):
+    """
+    =======================================================================================
+    Documentation for "interpolate_data()"
+    ---------------------------------------------------------------------------------------
+    The 'kind='linear'' argument in 'interp1d' specifies the type of interpolation to be 
+    performed. In this case, it indicates that linear interpolation should be used. 
+    Linear interpolation calculates the values between two known data points as a 
+    straight line. 
+
+    Regarding "fill_value='extrapolate'", it is used to enable extrapolation of values 
+    outside the range of the given data. By default, 'interp1d' raises an error if you 
+    try to interpolate/extrapolate outside the range of the input data. Setting 
+    'fill_value='extrapolate'' allows the function to extrapolate values beyond the 
+    given data range.
+    =======================================================================================
+    """
     interp_func = sp.interpolate.interp1d(x, y, kind='linear', fill_value='extrapolate')
     return interp_func(xi)
 
 #=============================================================================================================
-"""
-======================================================================================
-Documentation interpSigS() function
---------------------------------------------------------------------------------------
- The interpSigS function performs interpolation to calculate the scattering matrix 
- sigS based on provided input parameters.
- 
- **Inputs**:
- - 'jLgn': An integer representing the index of the energy group.
- - 'element': A string specifying the element.
- - 'Sig0': A numpy array representing the sigma-zero values for target points.
-
- **Outputs:**
- - 'sigS': A numpy array representing the resulting scattering matrix.
-======================================================================================
- The 'interpSigS()' function calculates and returns the scattering matrix 'sigS'. 
- This matrix is obtained through interpolation between scattering matrices ('s_SigS') 
- that correspond to specific sigma-zero base points. The interpolation is performed 
- for a set of target points represented by the vector 'Sig0', which has a length of 
- 'ng' (the number of energy groups).
- 
- In other words, the function takes as input the base scattering matrices for different 
- sigma-zero values. These matrices capture the scattering behavior of a material under 
- different conditions. The function then uses these base matrices to estimate the 
- scattering behavior at target points specified by 'Sig0'.
- 
- By performing interpolation, the function infers the scattering matrix values at the 
- target points based on the known scattering matrices for the sigma-zero base points. 
- The resulting 'sigS' matrix provides an approximation of the scattering behavior at 
- the target points, enabling further analysis or calculations involving the material's 
- scattering properties.
-======================================================================================
-"""
 def interpSigS(jLgn, element, temp, Sig0):
+    """
+    ======================================================================================
+    Documentation interpSigS() function
+    --------------------------------------------------------------------------------------
+    The interpSigS function performs interpolation to calculate the scattering matrix 
+    sigS based on provided input parameters.
+    
+    **Inputs**:
+    - 'jLgn': An integer representing the index of the energy group.
+    - 'element': A string specifying the element.
+    - 'Sig0': A numpy array representing the sigma-zero values for target points.
+
+    **Outputs:**
+    - 'sigS': A numpy array representing the resulting scattering matrix.
+    ======================================================================================
+    The 'interpSigS()' function calculates and returns the scattering matrix 'sigS'. 
+    This matrix is obtained through interpolation between scattering matrices ('s_SigS') 
+    that correspond to specific sigma-zero base points. The interpolation is performed 
+    for a set of target points represented by the vector 'Sig0', which has a length of 
+    'ng' (the number of energy groups).
+    
+    In other words, the function takes as input the base scattering matrices for different 
+    sigma-zero values. These matrices capture the scattering behavior of a material under 
+    different conditions. The function then uses these base matrices to estimate the 
+    scattering behavior at target points specified by 'Sig0'.
+    
+    By performing interpolation, the function infers the scattering matrix values at the 
+    target points based on the known scattering matrices for the sigma-zero base points. 
+    The resulting 'sigS' matrix provides an approximation of the scattering behavior at 
+    the target points, enabling further analysis or calculations involving the material's 
+    scattering properties.
+    ======================================================================================
+    """
     # Number of energy groups
     ng = 421
     elementDict = {
@@ -335,23 +328,23 @@ def interpSigS(jLgn, element, temp, Sig0):
     return sigS
 
 #=============================================================================================================
-"""
-==========================================================
- writeMacroXS() Function Documentation
-----------------------------------------------------------
- This function writes all group macroscopic cross sections
- from a HDF5.h5 structure 's_filename' to a HDF5 file with
- the name stored in matName.
-
-**Inputs:**
-    - s_filename: HDF5 file
-    - matName: string
-
-**Output:**
-    - "matName.h5": HDF5 file
-==========================================================
-"""
 def writeMacroXS(s_struct, matName):
+    """
+    ==========================================================
+    writeMacroXS() Function Documentation
+    ----------------------------------------------------------
+    This function writes all group macroscopic cross sections
+    from a HDF5.h5 structure 's_filename' to a HDF5 file with
+    the name stored in matName.
+
+    **Inputs:**
+        - s_filename: HDF5 file
+        - matName: string
+
+    **Output:**
+        - "matName.h5": HDF5 file
+    ==========================================================
+    """
     print(f'Write macroscopic cross sections to the file: {matName}.h5')
     
     # Convert int and float to np.ndarray
@@ -453,19 +446,19 @@ def writeMacroXS(s_struct, matName):
 
 
 #=============================================================================================================
-"""
-===========================================================================
- Documentation for the main() section of the code:
----------------------------------------------------------------------------
- Author: Siim Erik Pugal, 2023
-
- The function reads the MICROscopic group cross sections in HDF5
- format and calculates from them the MACROscopic cross sections for water
- solution of uranium-235 which is a homogeneous aqueous reactor.
-===========================================================================
-"""
 def main():
-        # number of energy groups
+    """
+    ===========================================================================
+    Documentation for the main() section of the code:
+    ---------------------------------------------------------------------------
+    Author: Siim Erik Pugal, 2023
+
+    The function reads the MICROscopic group cross sections in HDF5
+    format and calculates from them the MACROscopic cross sections for water
+    solution of uranium-235 which is a homogeneous aqueous reactor.
+    ===========================================================================
+    """
+    # number of energy groups
     H2OU = {}
     H2OU["ng"] = 421
 
