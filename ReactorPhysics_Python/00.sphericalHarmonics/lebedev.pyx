@@ -5,6 +5,9 @@
 # "A quadrature formula for the sphere of the 131st
 # algebraic order of accuracy"
 # Doklady Mathematics, Vol. 59, No. 3, 1999, pp. 477-481.
+#-------------------------------------------------------------------------
+# Python version written by:
+# Siim Erik Pugal, 2023 
 ##########################################################################
 import cython
 import numpy as np

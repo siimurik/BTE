@@ -1,5 +1,7 @@
 #******************************************************************
 # This code is released under the GNU General Public License (GPL).
+#
+# Siim Erik Pugal, 2023-2024
 #******************************************************************
 # Run with:
 #   $ python3 setup.py build_ext --inplace

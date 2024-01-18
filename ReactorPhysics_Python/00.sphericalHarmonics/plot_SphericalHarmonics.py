@@ -1,3 +1,8 @@
+#******************************************************************
+# This code is released under the GNU General Public License (GPL).
+#
+# Siim Erik Pugal, 2023-2024
+#******************************************************************
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.special import sph_harm
