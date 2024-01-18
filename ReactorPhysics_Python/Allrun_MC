@@ -17,7 +17,3 @@ cd ../
 # Run script in 06.Monte.Carlo/
 cd 06.Monte.Carlo/
 python3 numba_mc.py
-
-# Open the PDF file
-#xdg-open "ReactorPhysics_Python/06.Monte.Carlo/MC_01_keff.pdf"
-
