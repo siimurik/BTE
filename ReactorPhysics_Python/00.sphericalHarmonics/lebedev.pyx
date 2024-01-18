@@ -1,3 +1,11 @@
+##########################################################################
+# As per Professor Wuellen's request, any papers published using this code
+# or its derivatives are requested to include the following citation:
+# [1] V.I. Lebedev, and D.N. Laikov
+# "A quadrature formula for the sphere of the 131st
+# algebraic order of accuracy"
+# Doklady Mathematics, Vol. 59, No. 3, 1999, pp. 477-481.
+##########################################################################
 import cython
 import numpy as np
 cimport numpy as np
